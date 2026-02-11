@@ -425,7 +425,7 @@ class RpmApp extends LitElement {
                   ${this.sortChip("Best", "best")}
                   ${this.sortChip("%", "pct")}
                   ${this.sortChip("#", "sessions")}
-                  ${this.sortChip("Date", "last")}
+                  ${this.sortChip("Last", "last")}
                 </div>
               `
             : ""}
@@ -463,11 +463,15 @@ class RpmApp extends LitElement {
                                     <span>${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}</span>
                                   </div>
                                   <div class="compact-dates">
-                                    ${row.session_count === 1
-                                      ? html`<span><span class="session-count"># 1</span> ${this.fmt(row.first_date)}</span>`
-                                      : html`<span><span class="session-count"># ${row.session_count}</span><span class="date-range">${this.fmt(
-                                            row.first_date,
-                                          )} - ${this.fmt(row.last_date)}</span></span>`}
+                                    <span class="session-count"># ${row.session_count}</span>
+                                    <span class="date-pill">
+                                      <span class="date-label">First</span>
+                                      <span class="date-value">${this.fmt(row.first_date)}</span>
+                                    </span>
+                                    <span class="date-pill">
+                                      <span class="date-label">Last</span>
+                                      <span class="date-value">${this.fmt(row.last_date)}</span>
+                                    </span>
                                   </div>
                                 </td>
                               </tr>
