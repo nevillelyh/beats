@@ -49,6 +49,10 @@ class RpmApp extends LitElement {
         this.compact = next;
       }
     };
+    this._onPopState = async () => {
+      this.applyUrlState(new URLSearchParams(window.location.search));
+      await this.reloadLicks();
+    };
   }
 
   defaultMainSortDir(sortBy) {
@@ -58,12 +62,58 @@ class RpmApp extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener("resize", this._onResize);
+    window.addEventListener("popstate", this._onPopState);
+    this.applyUrlState(new URLSearchParams(window.location.search));
     this.loadAll();
   }
 
   disconnectedCallback() {
     window.removeEventListener("resize", this._onResize);
+    window.removeEventListener("popstate", this._onPopState);
     super.disconnectedCallback();
+  }
+
+  applyUrlState(params) {
+    const validSort = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
+    const validDir = new Set(["asc", "desc"]);
+    const validProgress = new Set(["all", "todo", "done"]);
+
+    const sortBy = params.get("sort");
+    const sortDir = params.get("dir");
+    const artist = params.get("artist");
+    const progress = params.get("progress");
+
+    if (sortBy && validSort.has(sortBy)) {
+      this.sortBy = sortBy;
+    }
+    if (sortDir && validDir.has(sortDir)) {
+      this.sortDir = sortDir;
+    }
+    if (artist !== null) {
+      this.filterArtistId = artist;
+    }
+    if (progress && validProgress.has(progress)) {
+      this.progressFilter = progress;
+    }
+  }
+
+  syncUrlState() {
+    const params = new URLSearchParams();
+    if (this.filterArtistId) {
+      params.set("artist", this.filterArtistId);
+    }
+    if (this.sortBy !== "artist") {
+      params.set("sort", this.sortBy);
+    }
+    if (this.sortDir !== this.defaultMainSortDir(this.sortBy)) {
+      params.set("dir", this.sortDir);
+    }
+    if (this.progressFilter !== "all") {
+      params.set("progress", this.progressFilter);
+    }
+    const query = params.toString();
+    const nextUrl = query ? `?${query}` : window.location.pathname;
+    history.replaceState(null, "", nextUrl);
   }
 
   localDate() {
@@ -159,6 +209,7 @@ class RpmApp extends LitElement {
       this.sortBy = col;
       this.sortDir = this.defaultMainSortDir(col);
     }
+    this.syncUrlState();
     this.reloadLicks();
   }
 
@@ -172,19 +223,23 @@ class RpmApp extends LitElement {
 
   async onArtistFilter(event) {
     this.filterArtistId = event.target.value;
+    this.syncUrlState();
     await this.reloadLicks();
   }
 
   cycleProgressFilter() {
     if (this.progressFilter === "all") {
       this.progressFilter = "todo";
+      this.syncUrlState();
       return;
     }
     if (this.progressFilter === "todo") {
       this.progressFilter = "done";
+      this.syncUrlState();
       return;
     }
     this.progressFilter = "all";
+    this.syncUrlState();
   }
 
   async openSessions(lick) {
