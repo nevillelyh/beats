@@ -11,10 +11,13 @@ import argparse
 import csv
 import re
 import sqlite3
+from datetime import date, datetime
 from pathlib import Path
 
 DATE_COL_RE = re.compile(r"^Date\s+(\d+)$")
 RPM_COL_RE = re.compile(r"^RPM\s+(\d+)$")
+DATE_SHORT_RE = re.compile(r"^D(\d+)$")
+RPM_SHORT_RE = re.compile(r"^R(\d+)$")
 
 
 SCHEMA_SQL = """
@@ -47,6 +50,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Import RPM CSV into SQLite")
     parser.add_argument("--db", required=True, help="SQLite database path")
     parser.add_argument("--csv", required=True, help="CSV file path")
+    parser.add_argument(
+        "--default-year",
+        type=int,
+        default=date.today().year,
+        help="Year used for MM/DD dates (default: current year)",
+    )
     return parser.parse_args()
 
 
@@ -60,18 +69,47 @@ def resolve_pairs(fieldnames: list[str]) -> list[tuple[str, str]]:
     for name in fieldnames:
         if not name:
             continue
-        m_date = DATE_COL_RE.match(name.strip())
+        clean = name.strip()
+        m_date = DATE_COL_RE.match(clean)
         if m_date:
             dates[int(m_date.group(1))] = name
             continue
-        m_rpm = RPM_COL_RE.match(name.strip())
+        m_short_date = DATE_SHORT_RE.match(clean)
+        if m_short_date:
+            dates[int(m_short_date.group(1))] = name
+            continue
+        m_rpm = RPM_COL_RE.match(clean)
         if m_rpm:
             rpms[int(m_rpm.group(1))] = name
+            continue
+        m_short_rpm = RPM_SHORT_RE.match(clean)
+        if m_short_rpm:
+            rpms[int(m_short_rpm.group(1))] = name
 
     pairs: list[tuple[str, str]] = []
     for i in sorted(set(dates.keys()) & set(rpms.keys())):
         pairs.append((dates[i], rpms[i]))
     return pairs
+
+
+def normalize_date(raw: str, default_year: int) -> str | None:
+    v = raw.strip()
+    if not v:
+        return None
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", v):
+        return v
+    if re.match(r"^\d{2}/\d{2}$", v):
+        month, day = v.split("/")
+        try:
+            return date(default_year, int(month), int(day)).isoformat()
+        except ValueError:
+            return None
+    for fmt in ("%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(v, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
 
 
 def ensure_artist(conn: sqlite3.Connection, name: str) -> int:
@@ -107,7 +145,7 @@ def ensure_lick(conn: sqlite3.Connection, artist_id: int, name: str, goal: int) 
     return int(row[0])
 
 
-def import_csv(db_path: Path, csv_path: Path) -> None:
+def import_csv(db_path: Path, csv_path: Path, default_year: int) -> None:
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
     init_schema(conn)
@@ -154,7 +192,8 @@ def import_csv(db_path: Path, csv_path: Path) -> None:
                 if not date_raw or not rpm_raw:
                     print(f"row {row_no}: warning (partial pair {date_col}/{rpm_col})")
                     continue
-                if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_raw):
+                normalized = normalize_date(date_raw, default_year)
+                if not normalized:
                     print(f"row {row_no}: warning (invalid date {date_raw})")
                     continue
                 try:
@@ -172,7 +211,7 @@ def import_csv(db_path: Path, csv_path: Path) -> None:
                     VALUES (?, ?, ?)
                     ON CONFLICT(lick_id, date) DO UPDATE SET rpm = excluded.rpm
                     """,
-                    (lick_id, date_raw, rpm),
+                    (lick_id, normalized, rpm),
                 )
                 imported += 1
 
@@ -183,4 +222,4 @@ def import_csv(db_path: Path, csv_path: Path) -> None:
 
 if __name__ == "__main__":
     args = parse_args()
-    import_csv(Path(args.db), Path(args.csv))
+    import_csv(Path(args.db), Path(args.csv), args.default_year)
