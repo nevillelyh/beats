@@ -1,4 +1,4 @@
-import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
+import { LitElement, html } from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
 
 class RpmApp extends LitElement {
   static properties = {
@@ -18,11 +18,10 @@ class RpmApp extends LitElement {
     addMax: { state: true },
   };
 
-  static styles = css`
-    :host {
-      display: block;
-    }
-  `;
+  createRenderRoot() {
+    // Render in light DOM so global styles.css can style app content.
+    return this;
+  }
 
   constructor() {
     super();
@@ -49,6 +48,34 @@ class RpmApp extends LitElement {
 
   localDate() {
     return new Date().toLocaleDateString("en-CA");
+  }
+
+  el(id) {
+    return this.renderRoot?.querySelector(`#${id}`);
+  }
+
+  openDialog(id) {
+    const dialog = this.el(id);
+    if (!dialog) {
+      return;
+    }
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+      return;
+    }
+    dialog.setAttribute("open", "open");
+  }
+
+  closeDialog(id) {
+    const dialog = this.el(id);
+    if (!dialog) {
+      return;
+    }
+    if (typeof dialog.close === "function") {
+      dialog.close();
+      return;
+    }
+    dialog.removeAttribute("open");
   }
 
   async api(path, options = {}) {
@@ -125,7 +152,7 @@ class RpmApp extends LitElement {
     this.sessionSortBy = "date";
     this.sessionSortDir = "asc";
     await this.loadSessions();
-    this.shadowRoot.getElementById("sessionsDialog").show();
+    this.openDialog("sessionsDialog");
   }
 
   async loadSessions() {
@@ -158,7 +185,7 @@ class RpmApp extends LitElement {
     this.addMin = min;
     this.addMax = max;
     this.addValue = min <= max ? min : max;
-    this.shadowRoot.getElementById("addSessionDialog").show();
+    this.openDialog("addSessionDialog");
   }
 
   updateAddValue(event) {
@@ -174,7 +201,7 @@ class RpmApp extends LitElement {
         method: "POST",
         body: JSON.stringify({ rpm: this.addValue }),
       });
-      this.shadowRoot.getElementById("addSessionDialog").hide();
+      this.closeDialog("addSessionDialog");
       await this.reloadLicks();
     } catch (err) {
       this.error = err.message;
@@ -182,22 +209,22 @@ class RpmApp extends LitElement {
   }
 
   async submitAddLick() {
-    const artistInput = this.shadowRoot.getElementById("artistName").value.trim();
-    const artistSelected = this.shadowRoot.getElementById("artistSelect").value.trim();
+    const artistInput = this.el("artistName").value.trim();
+    const artistSelected = this.el("artistSelect").value.trim();
     const artistName = artistInput || artistSelected;
-    const lickName = this.shadowRoot.getElementById("lickName").value.trim();
-    const goalRpm = Number(this.shadowRoot.getElementById("goalRpm").value);
+    const lickName = this.el("lickName").value.trim();
+    const goalRpm = Number(this.el("goalRpm").value);
 
     try {
       await this.api("/api/licks", {
         method: "POST",
         body: JSON.stringify({ artistName, lickName, goalRpm }),
       });
-      this.shadowRoot.getElementById("artistName").value = "";
-      this.shadowRoot.getElementById("artistSelect").value = "";
-      this.shadowRoot.getElementById("lickName").value = "";
-      this.shadowRoot.getElementById("goalRpm").value = "";
-      this.shadowRoot.getElementById("addLickDialog").hide();
+      this.el("artistName").value = "";
+      this.el("artistSelect").value = "";
+      this.el("lickName").value = "";
+      this.el("goalRpm").value = "";
+      this.closeDialog("addLickDialog");
       await this.loadAll();
     } catch (err) {
       this.error = err.message;
@@ -205,7 +232,7 @@ class RpmApp extends LitElement {
   }
 
   openAddLickDialog() {
-    this.shadowRoot.getElementById("addLickDialog").show();
+    this.openDialog("addLickDialog");
   }
 
   fmt(value) {
@@ -229,7 +256,7 @@ class RpmApp extends LitElement {
       <div class="container">
         <div class="header">
           <h1 class="title">RPM Tracker</h1>
-          <sl-button variant="primary" @click=${this.openAddLickDialog}>+ Add Lick</sl-button>
+          <button class="btn btn-primary" @click=${this.openAddLickDialog}>+ Add Lick</button>
         </div>
 
         <div class="card">
@@ -247,7 +274,7 @@ class RpmApp extends LitElement {
             ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
           </div>
 
-          ${this.error ? html`<sl-alert variant="danger" open>${this.error}</sl-alert>` : ""}
+          ${this.error ? html`<div class="alert">${this.error}</div>` : ""}
 
           <div class="table-wrap">
             <table class="table">
@@ -278,12 +305,12 @@ class RpmApp extends LitElement {
                           <td>${this.fmt(row.last_date)}</td>
                           <td>
                             <div class="actions">
-                              <sl-button size="small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
+                              <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                 ...
-                              </sl-button>
-                              <sl-button size="small" variant="primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
+                              </button>
+                              <button class="btn btn-small btn-primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
                                 +
-                              </sl-button>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -295,26 +322,28 @@ class RpmApp extends LitElement {
         </div>
       </div>
 
-      <sl-dialog id="sessionsDialog" label="Sessions">
-        <div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th><button @click=${() => this.sortSessions("date")}>Date</button></th>
-                <th><button @click=${() => this.sortSessions("rpm")}>RPM</button></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${this.sessions.length === 0
-                ? html`<tr><td colspan="2" class="row-empty">No sessions.</td></tr>`
-                : this.sessions.map((s) => html`<tr><td>${s.date}</td><td>${s.rpm}</td></tr>`)}
-            </tbody>
-          </table>
+      <dialog id="sessionsDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
+        <h3>Sessions</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th><button @click=${() => this.sortSessions("date")}>Date</button></th>
+              <th><button @click=${() => this.sortSessions("rpm")}>RPM</button></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this.sessions.length === 0
+              ? html`<tr><td colspan="2" class="row-empty">No sessions.</td></tr>`
+              : this.sessions.map((s) => html`<tr><td>${s.date}</td><td>${s.rpm}</td></tr>`)}
+          </tbody>
+        </table>
+        <div class="dialog-actions">
+          <button class="btn" @click=${() => this.closeDialog("sessionsDialog")}>Close</button>
         </div>
-        <sl-button slot="footer" @click=${() => this.shadowRoot.getElementById("sessionsDialog").hide()}>Close</sl-button>
-      </sl-dialog>
+      </dialog>
 
-      <sl-dialog id="addSessionDialog" label="Add Session">
+      <dialog id="addSessionDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
+        <h3>Add Session</h3>
         <div class="range-grid">
           <div class="muted">Allowed range: ${this.addMin} - ${this.addMax}</div>
           <input
@@ -336,24 +365,32 @@ class RpmApp extends LitElement {
             @input=${this.updateAddValue}
           />
         </div>
-        <sl-button slot="footer" @click=${() => this.shadowRoot.getElementById("addSessionDialog").hide()}>Cancel</sl-button>
-        <sl-button slot="footer" variant="primary" ?disabled=${addDisabledByRange} @click=${this.submitAddSession}>Save</sl-button>
-      </sl-dialog>
+        <div class="dialog-actions">
+          <button class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
+          <button class="btn btn-primary" ?disabled=${addDisabledByRange} @click=${this.submitAddSession}>Save</button>
+        </div>
+      </dialog>
 
-      <sl-dialog id="addLickDialog" label="Add Lick">
+      <dialog id="addLickDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
+        <h3>Add Lick</h3>
         <div class="range-grid">
           <label for="artistSelect">Existing Artist</label>
           <select id="artistSelect">
             <option value="">-- Select existing --</option>
             ${this.artists.map((artist) => html`<option value=${artist.name}>${artist.name}</option>`)}
           </select>
-          <sl-input id="artistName" label="New Artist (optional)"></sl-input>
-          <sl-input id="lickName" label="Lick"></sl-input>
-          <sl-input id="goalRpm" label="Goal RPM" type="number" min="1" step="1"></sl-input>
+          <label for="artistName">New Artist (optional)</label>
+          <input id="artistName" />
+          <label for="lickName">Lick</label>
+          <input id="lickName" />
+          <label for="goalRpm">Goal RPM</label>
+          <input id="goalRpm" type="number" min="1" step="1" />
         </div>
-        <sl-button slot="footer" @click=${() => this.shadowRoot.getElementById("addLickDialog").hide()}>Cancel</sl-button>
-        <sl-button slot="footer" variant="primary" @click=${this.submitAddLick}>Save</sl-button>
-      </sl-dialog>
+        <div class="dialog-actions">
+          <button class="btn" @click=${() => this.closeDialog("addLickDialog")}>Cancel</button>
+          <button class="btn btn-primary" @click=${this.submitAddLick}>Save</button>
+        </div>
+      </dialog>
     `;
   }
 }
