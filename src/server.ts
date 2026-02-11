@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import {
   addSession,
+  createArtist,
   createLick,
   getArtists,
   getLickMeta,
@@ -50,6 +51,23 @@ function notFound(message: string): Response {
 async function handleApi(req: Request, url: URL): Promise<Response | null> {
   if (url.pathname === "/api/artists" && req.method === "GET") {
     return json({ data: getArtists(db) });
+  }
+
+  if (url.pathname === "/api/artists" && req.method === "POST") {
+    try {
+      const body = (await req.json()) as { artistName?: string };
+      if (!body.artistName) {
+        return badRequest("artistName is required");
+      }
+      const id = createArtist(db, body.artistName);
+      return json({ id }, 201);
+    } catch (err) {
+      const message = (err as Error).message;
+      if (message.includes("UNIQUE constraint failed")) {
+        return badRequest("Artist already exists");
+      }
+      return badRequest(message);
+    }
   }
 
   if (url.pathname === "/api/licks" && req.method === "GET") {

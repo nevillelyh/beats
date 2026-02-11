@@ -304,19 +304,20 @@ class RpmApp extends LitElement {
   }
 
   async submitAddLick() {
-    const artistInput = this.el("artistName").value.trim();
-    const artistSelected = this.el("artistSelect").value.trim();
-    const artistName = artistInput || artistSelected;
+    const activeArtist = this.artists.find((artist) => String(artist.id) === this.filterArtistId);
+    const artistName = activeArtist?.name || "";
     const lickName = this.el("lickName").value.trim();
     const goalRpm = Number(this.el("goalRpm").value);
+    if (!artistName) {
+      this.error = "Select an artist before adding a lick";
+      return;
+    }
 
     try {
       await this.api("/api/licks", {
         method: "POST",
         body: JSON.stringify({ artistName, lickName, goalRpm }),
       });
-      this.el("artistName").value = "";
-      this.el("artistSelect").value = "";
       this.el("lickName").value = "";
       this.el("goalRpm").value = "";
       this.closeDialog("addLickDialog");
@@ -327,7 +328,30 @@ class RpmApp extends LitElement {
   }
 
   openAddLickDialog() {
+    if (!this.filterArtistId) {
+      this.error = "Select an artist first";
+      return;
+    }
     this.openDialog("addLickDialog");
+  }
+
+  openAddArtistDialog() {
+    this.openDialog("addArtistDialog");
+  }
+
+  async submitAddArtist() {
+    const artistName = this.el("newArtistName").value.trim();
+    try {
+      await this.api("/api/artists", {
+        method: "POST",
+        body: JSON.stringify({ artistName }),
+      });
+      this.el("newArtistName").value = "";
+      this.closeDialog("addArtistDialog");
+      await this.loadAll();
+    } catch (err) {
+      this.error = err.message;
+    }
   }
 
   fmt(value) {
@@ -368,7 +392,9 @@ class RpmApp extends LitElement {
       <div class="container">
         <div class="header">
           <h1 class="title">RPM Tracker</h1>
-          <button class="btn btn-primary" @click=${this.openAddLickDialog}>+ Add Lick</button>
+          ${this.filterArtistId
+            ? html`<button class="btn btn-primary" @click=${this.openAddLickDialog}>+ Add Lick</button>`
+            : html`<button class="btn btn-primary" @click=${this.openAddArtistDialog}>+ Add Artist</button>`}
         </div>
 
         <div class="card">
@@ -551,13 +577,10 @@ class RpmApp extends LitElement {
       <dialog id="addLickDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
         <h3>Add Lick</h3>
         <div class="range-grid">
-          <label for="artistSelect">Existing Artist</label>
-          <select id="artistSelect">
-            <option value="">-- Select existing --</option>
-            ${this.artists.map((artist) => html`<option value=${artist.name}>${artist.name}</option>`)}
-          </select>
-          <label for="artistName">New Artist (optional)</label>
-          <input id="artistName" />
+          <div class="muted">
+            Artist:
+            ${this.artists.find((artist) => String(artist.id) === this.filterArtistId)?.name || "-"}
+          </div>
           <label for="lickName">Lick</label>
           <input id="lickName" />
           <label for="goalRpm">Goal RPM</label>
@@ -566,6 +589,18 @@ class RpmApp extends LitElement {
         <div class="dialog-actions">
           <button class="btn" @click=${() => this.closeDialog("addLickDialog")}>Cancel</button>
           <button class="btn btn-primary" @click=${this.submitAddLick}>Save</button>
+        </div>
+      </dialog>
+
+      <dialog id="addArtistDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
+        <h3>Add Artist</h3>
+        <div class="range-grid">
+          <label for="newArtistName">Artist</label>
+          <input id="newArtistName" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn" @click=${() => this.closeDialog("addArtistDialog")}>Cancel</button>
+          <button class="btn btn-primary" @click=${this.submitAddArtist}>Save</button>
         </div>
       </dialog>
     `;

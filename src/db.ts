@@ -60,6 +60,22 @@ export function getArtists(db: Database): Artist[] {
     .all() as Artist[];
 }
 
+export function createArtist(db: Database, artistName: string): number {
+  const cleanArtist = artistName.trim();
+  if (!cleanArtist) {
+    throw new Error("artistName is required");
+  }
+
+  db.query("INSERT INTO artists(name) VALUES (?)").run(cleanArtist);
+  const row = db
+    .query("SELECT id FROM artists WHERE name = ?")
+    .get(cleanArtist) as { id: number } | null;
+  if (!row) {
+    throw new Error("Failed to create artist");
+  }
+  return row.id;
+}
+
 export function createLick(
   db: Database,
   artistName: string,
