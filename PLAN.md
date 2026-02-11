@@ -12,14 +12,16 @@ Build a one-page, mobile-friendly web app (iOS-inspired UI) for tracking lick pr
 2. CSV import ignores derived fields (`Best`, `%`, `First`, `Last`) and recomputes them from sessions.
 3. Disable add-session when `best >= goal` or when a session already exists for today.
 4. "Today" uses the **device local timezone**.
-5. Tech stack: **Bun + Lit + Shoelace**.
+5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
+6. Main table sort defaults to **ascending** for all columns.
+7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
 
 ## Tech Stack
 
 - Runtime/server: Bun (`Bun.serve`)
 - Backend language: TypeScript
 - DB: SQLite via `bun:sqlite` with raw SQL
-- Frontend: Lit + Shoelace (lightweight web components)
+- Frontend: Lit + native HTML controls + custom CSS
 - Tests: Bun test runner
 - CSV importer: Python CLI script
 - Containerization: Docker with a production-oriented `Dockerfile`
@@ -74,10 +76,17 @@ Provide `scripts/import_csv.py`:
 
 - CLI:
   - `python scripts/import_csv.py --db data/rpms.sqlite --csv input.csv`
-- Expected columns:
-  - `Artist`, `Lick`, `Goal`, `Best`, `%`, `First`, `Last`, `Date 1`, `RPM 1`, `Date 2`, `RPM 2`, ...
+  - Optional: `--default-year YYYY` for `MM/DD` date inputs.
+- Supported session column styles:
+  - `Date N` / `RPM N`
+  - `D1` / `R1` (and higher numbered pairs)
+- Date input formats:
+  - `YYYY-MM-DD`
+  - `MM/DD`
+  - `MM/DD/YYYY`
+  - `MM/DD/YY`
 - Rules:
-  - Use `Artist`, `Lick`, `Goal`, and `Date N` / `RPM N` pairs.
+  - Use `Artist`, `Lick`, `Goal`, and date/RPM pairs.
   - Ignore derived fields: `Best`, `%`, `First`, `Last`.
   - Duplicate `(lick, date)` rows are **upserted** (replace RPM).
   - Skip malformed pairs with warnings; continue import.
@@ -98,6 +107,10 @@ Provide `scripts/import_csv.py`:
 
 ## UI Specification
 
+### Header actions
+
+- `+ Add Lick` opens add-lick modal.
+
 ### Main table
 
 Columns:
@@ -107,6 +120,7 @@ Columns:
 - Goal (RPM)
 - Best (RPM)
 - % (`best / goal * 100`, rounded integer)
+- # (session count)
 - First (date)
 - Last (date)
 
@@ -116,6 +130,30 @@ Rules:
 - Sort by any column.
 - Hide Artist column when an artist filter is active.
 - For no-session licks: show `-` in Best/%/First/Last.
+- URL persists view state:
+  - `artist` (artist filter)
+  - `sort` (sort field)
+  - `dir` (sort direction)
+  - `progress` (`all|todo|done`)
+
+### Progress filter control
+
+Single cycle button next to artist filter with 3 states:
+
+- `All` -> show all rows
+- `TODO` -> show rows where `% < 100`
+- `Done` -> show rows where `% == 100`
+
+### Mobile/wrapped row view
+
+On narrow screens, rows render as wrapped cards:
+
+- Top line: artist (if shown), lick name, row actions.
+- Metrics line: Goal, Best, %.
+- Date/session line:
+  - If one session: `# 1 YYYY-MM-DD`
+  - If multiple sessions: `# N YYYY-MM-DD - YYYY-MM-DD`
+- Sorting in mobile uses horizontal sort chips (instead of dropdowns).
 
 ### Row actions
 
@@ -124,6 +162,7 @@ Each lick row has:
 - `...` (expand sessions)
   - Disabled when `session_count == 0`
   - Opens modal with sessions (`date`, `rpm`), sortable by either column
+  - Default sort: `date desc`
 
 - `+` (add session)
   - Disabled when `best >= goal` or today session exists
@@ -140,7 +179,8 @@ Each lick row has:
 
 Top-level `+` button opens modal with:
 
-- Artist combobox (select existing or enter new)
+- Existing artist dropdown
+- Optional new artist input
 - Lick name input
 - Goal RPM input (integer > 0)
 
@@ -154,14 +194,18 @@ Top-level `+` button opens modal with:
 4. Slider range math is correct (`min` multiple-of-5 strictly above best).
 5. Table sorting/filtering works for all columns.
 6. Artist filter hides Artist column.
-7. CSV importer:
-   - ignores derived fields
-   - imports date/RPM pairs
-   - upserts duplicate lick/date
-   - logs malformed pairs
-8. Device-local date controls "today" behavior.
-9. Docker image builds and app starts on port `3000`.
-10. SQLite file persists across restarts when `/data` is mounted.
+7. Progress filter cycle works for `All`, `TODO`, `Done`.
+8. URL state persists and restores artist/sort/dir/progress.
+9. Session modal defaults to date descending and supports sort toggles.
+10. CSV importer:
+    - ignores derived fields
+    - supports `Date N/RPM N` and `Dn/Rn`
+    - accepts configured date formats
+    - upserts duplicate lick/date
+    - logs malformed pairs
+11. Device-local date controls "today" behavior.
+12. Docker image builds and app starts on port `3000`.
+13. SQLite file persists across restarts when `/data` is mounted.
 
 ## Implementation Milestones
 
@@ -171,9 +215,12 @@ Top-level `+` button opens modal with:
 4. Main table UI (fetch, filter, sort).
 5. Session modal and add-session modal.
 6. Add-lick modal.
-7. CSV importer script.
-8. Dockerfile + `.dockerignore` + container run docs.
-9. Test suite and edge-case hardening.
+7. Mobile wrapped-row layout and chip-based sorting.
+8. Progress filter cycle (`All/TODO/Done`).
+9. URL-state persistence in main view.
+10. CSV importer script enhancements.
+11. Dockerfile + `.dockerignore` + container run docs.
+12. Test suite and edge-case hardening.
 
 ## Reference Docs
 
@@ -181,4 +228,3 @@ Top-level `+` button opens modal with:
 - Bun HTTP server: https://bun.sh/docs/runtime/http/server
 - Bun tests: https://bun.sh/docs/test/writing-tests
 - Lit docs: https://lit.dev/docs/
-- Shoelace docs: https://shoelace.style/getting-started/installation
