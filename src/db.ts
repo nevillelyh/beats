@@ -33,6 +33,7 @@ const SORT_MAP: Record<string, string> = {
   goal: "goal_rpm",
   best: "best_rpm",
   pct: "pct_of_goal",
+  sessions: "session_count",
   first: "first_date",
   last: "last_date",
 };

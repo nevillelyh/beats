@@ -46,10 +46,15 @@ body {
 }
 
 .toolbar {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.toolbar-row {
   display: flex;
   gap: 10px;
   align-items: center;
-  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
@@ -72,17 +77,20 @@ body {
 }
 
 .table th button {
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--ink);
   font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
-  padding: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
 }
 
 .table th button.active {
-  color: var(--accent);
+  color: #fff;
+  background: #0f6f9f;
+  border-color: #0d5f87;
 }
 
 .actions {
@@ -123,6 +131,33 @@ body {
   background: #0d5f87;
 }
 
+.chip {
+  background: #f8fafc;
+}
+
+.chip-active {
+  background: #0f6f9f;
+  color: #fff;
+  border-color: #0d5f87;
+}
+
+.chip-active:hover,
+.chip-active:active,
+.chip-active:focus,
+.chip-active:focus-visible {
+  background: #0f6f9f;
+  color: #fff;
+  border-color: #0d5f87;
+}
+
+.sort-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
 .alert {
   background: #fee2e2;
   border: 1px solid #fecaca;
@@ -145,6 +180,64 @@ body {
 .range-grid {
   display: grid;
   gap: 10px;
+}
+
+.compact-main td {
+  white-space: normal;
+}
+
+.compact-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.compact-meta {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.compact-meta span {
+  background: #eef3f8;
+  border: 1px solid #d6e0ea;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.compact-dates {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.date-range {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid #d6e0ea;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-count {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #0f6f9f;
+  border: 1px solid #0d5f87;
+  color: #fff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 input,
@@ -184,5 +277,11 @@ select {
   }
   .table {
     font-size: 0.88rem;
+  }
+  .toolbar label {
+    font-size: 0.85rem;
+  }
+  .toolbar-row select {
+    min-width: 84px;
   }
 }

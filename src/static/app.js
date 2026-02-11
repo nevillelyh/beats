@@ -16,6 +16,7 @@ class RpmApp extends LitElement {
     addValue: { state: true },
     addMin: { state: true },
     addMax: { state: true },
+    compact: { state: true },
   };
 
   createRenderRoot() {
@@ -29,21 +30,38 @@ class RpmApp extends LitElement {
     this.licks = [];
     this.filterArtistId = "";
     this.sortBy = "artist";
-    this.sortDir = "asc";
+    this.sortDir = this.defaultMainSortDir("artist");
     this.loading = false;
     this.error = "";
     this.activeLick = null;
     this.sessions = [];
     this.sessionSortBy = "date";
-    this.sessionSortDir = "asc";
+    this.sessionSortDir = "desc";
     this.addValue = 0;
     this.addMin = 0;
     this.addMax = 0;
+    this.compact = typeof window !== "undefined" ? window.innerWidth <= 720 : false;
+    this._onResize = () => {
+      const next = window.innerWidth <= 720;
+      if (next !== this.compact) {
+        this.compact = next;
+      }
+    };
+  }
+
+  defaultMainSortDir(sortBy) {
+    return "asc";
   }
 
   connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("resize", this._onResize);
     this.loadAll();
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("resize", this._onResize);
+    super.disconnectedCallback();
   }
 
   localDate() {
@@ -137,9 +155,17 @@ class RpmApp extends LitElement {
       this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
     } else {
       this.sortBy = col;
-      this.sortDir = "asc";
+      this.sortDir = this.defaultMainSortDir(col);
     }
     this.reloadLicks();
+  }
+
+  sortChip(label, key) {
+    const active = this.sortBy === key;
+    const marker = active ? (this.sortDir === "asc" ? "↑" : "↓") : "";
+    return html`<button class="btn btn-small ${active ? "chip-active" : "chip"}" @click=${() => this.onSort(key)}>
+      ${label} ${marker}
+    </button>`;
   }
 
   async onArtistFilter(event) {
@@ -172,7 +198,7 @@ class RpmApp extends LitElement {
       this.sessionSortDir = this.sessionSortDir === "asc" ? "desc" : "asc";
     } else {
       this.sessionSortBy = col;
-      this.sessionSortDir = "asc";
+      this.sessionSortDir = "desc";
     }
     await this.loadSessions();
   }
@@ -258,7 +284,6 @@ class RpmApp extends LitElement {
   render() {
     const hideArtistCol = Boolean(this.filterArtistId);
     const addDisabledByRange = this.addMin > this.addMax;
-    const emptyColspan = hideArtistCol ? 7 : 8;
 
     return html`
       <div class="container">
@@ -269,63 +294,125 @@ class RpmApp extends LitElement {
 
         <div class="card">
           <div class="toolbar">
-            <label for="artistFilter">Artist</label>
-            <select id="artistFilter" @change=${this.onArtistFilter}>
-              <option value="">All artists</option>
-              ${this.artists.map(
-                (artist) =>
-                  html`<option value=${artist.id} ?selected=${String(artist.id) === this.filterArtistId}>
-                    ${artist.name}
-                  </option>`,
-              )}
-            </select>
-            ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
+            <div class="toolbar-row">
+              <label for="artistFilter">Artist</label>
+              <select id="artistFilter" @change=${this.onArtistFilter}>
+                <option value="">All artists</option>
+                ${this.artists.map(
+                  (artist) =>
+                    html`<option value=${artist.id} ?selected=${String(artist.id) === this.filterArtistId}>
+                      ${artist.name}
+                    </option>`,
+                )}
+              </select>
+              ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
+            </div>
           </div>
+          ${this.compact
+            ? html`
+                <div class="sort-chips">
+                  ${this.sortChip("Artist", "artist")}
+                  ${this.sortChip("Lick", "lick")}
+                  ${this.sortChip("Goal", "goal")}
+                  ${this.sortChip("Best", "best")}
+                  ${this.sortChip("%", "pct")}
+                  ${this.sortChip("#", "sessions")}
+                  ${this.sortChip("Date", "last")}
+                </div>
+              `
+            : ""}
 
           ${this.error ? html`<div class="alert">${this.error}</div>` : ""}
 
           <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  ${hideArtistCol ? "" : this.header("Artist", "artist")}
-                  ${this.header("Lick", "lick")}
-                  ${this.header("Goal", "goal")}
-                  ${this.header("Best", "best")}
-                  ${this.header("%", "pct")}
-                  ${this.header("First", "first")}
-                  ${this.header("Last", "last")}
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${this.licks.length === 0
-                  ? html`<tr><td class="row-empty" colspan=${emptyColspan}>No licks yet.</td></tr>`
-                  : this.licks.map(
-                      (row) => html`
-                        <tr>
-                          ${hideArtistCol ? "" : html`<td>${row.artist_name}</td>`}
-                          <td>${row.lick_name}</td>
-                          <td>${row.goal_rpm}</td>
-                          <td>${this.fmt(row.best_rpm)}</td>
-                          <td>${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}</td>
-                          <td>${this.fmt(row.first_date)}</td>
-                          <td>${this.fmt(row.last_date)}</td>
-                          <td>
-                            <div class="actions">
-                              <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
-                                ...
-                              </button>
-                              <button class="btn btn-small btn-primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
-                                +
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      `,
-                    )}
-              </tbody>
-            </table>
+            ${this.compact
+              ? html`
+                  <table class="table">
+                    <tbody>
+                      ${this.licks.length === 0
+                        ? html`<tr><td class="row-empty">No licks yet.</td></tr>`
+                        : this.licks.map(
+                            (row) => html`
+                              <tr class="compact-main">
+                                <td>
+                                  <div class="compact-top">
+                                    <div>
+                                      ${hideArtistCol ? "" : html`<div class="muted">${row.artist_name}</div>`}
+                                      <div><strong>${row.lick_name}</strong></div>
+                                    </div>
+                                    <div class="actions">
+                                      <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
+                                        ...
+                                      </button>
+                                      <button class="btn btn-small btn-primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div class="compact-meta">
+                                    <span>Goal ${row.goal_rpm}</span>
+                                    <span>Best ${this.fmt(row.best_rpm)}</span>
+                                    <span>${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}</span>
+                                  </div>
+                                  <div class="compact-dates">
+                                    ${row.session_count === 1
+                                      ? html`<span><span class="session-count"># 1</span> ${this.fmt(row.first_date)}</span>`
+                                      : html`<span><span class="session-count"># ${row.session_count}</span><span class="date-range">${this.fmt(
+                                            row.first_date,
+                                          )} - ${this.fmt(row.last_date)}</span></span>`}
+                                  </div>
+                                </td>
+                              </tr>
+                            `,
+                          )}
+                    </tbody>
+                  </table>
+                `
+              : html`
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        ${hideArtistCol ? "" : this.header("Artist", "artist")}
+                        ${this.header("Lick", "lick")}
+                        ${this.header("Goal", "goal")}
+                        ${this.header("Best", "best")}
+                        ${this.header("%", "pct")}
+                        ${this.header("#", "sessions")}
+                        ${this.header("First", "first")}
+                        ${this.header("Last", "last")}
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${this.licks.length === 0
+                        ? html`<tr><td class="row-empty" colspan=${hideArtistCol ? 8 : 9}>No licks yet.</td></tr>`
+                        : this.licks.map(
+                            (row) => html`
+                              <tr>
+                                ${hideArtistCol ? "" : html`<td>${row.artist_name}</td>`}
+                                <td>${row.lick_name}</td>
+                                <td>${row.goal_rpm}</td>
+                                <td>${this.fmt(row.best_rpm)}</td>
+                                <td>${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}</td>
+                                <td>${row.session_count}</td>
+                                <td>${this.fmt(row.first_date)}</td>
+                                <td>${this.fmt(row.last_date)}</td>
+                                <td>
+                                  <div class="actions">
+                                    <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
+                                      ...
+                                    </button>
+                                    <button class="btn btn-small btn-primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
+                                      +
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            `,
+                          )}
+                    </tbody>
+                  </table>
+                `}
           </div>
         </div>
       </div>

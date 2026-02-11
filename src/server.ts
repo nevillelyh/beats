@@ -91,7 +91,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     try {
       const lickId = Number(sessionListMatch[1]);
       const sortBy = url.searchParams.get("sort_by") || "date";
-      const sortDir = url.searchParams.get("sort_dir") || "asc";
+      const sortDir = url.searchParams.get("sort_dir") || "desc";
       const rows = getSessions(db, lickId, sortBy, sortDir);
       return json({ data: rows });
     } catch (err) {
