@@ -150,7 +150,7 @@ class RpmApp extends LitElement {
   async openSessions(lick) {
     this.activeLick = lick;
     this.sessionSortBy = "date";
-    this.sessionSortDir = "asc";
+    this.sessionSortDir = "desc";
     await this.loadSessions();
     this.openDialog("sessionsDialog");
   }
@@ -247,6 +247,14 @@ class RpmApp extends LitElement {
     </th>`;
   }
 
+  sessionHeader(label, key) {
+    const active = this.sessionSortBy === key;
+    const marker = active ? (this.sessionSortDir === "asc" ? " ▲" : " ▼") : "";
+    return html`<th>
+      <button class=${active ? "active" : ""} @click=${() => this.sortSessions(key)}>${label}${marker}</button>
+    </th>`;
+  }
+
   render() {
     const hideArtistCol = Boolean(this.filterArtistId);
     const addDisabledByRange = this.addMin > this.addMax;
@@ -327,8 +335,8 @@ class RpmApp extends LitElement {
         <table class="table">
           <thead>
             <tr>
-              <th><button @click=${() => this.sortSessions("date")}>Date</button></th>
-              <th><button @click=${() => this.sortSessions("rpm")}>RPM</button></th>
+              ${this.sessionHeader("Date", "date")}
+              ${this.sessionHeader("RPM", "rpm")}
             </tr>
           </thead>
           <tbody>
