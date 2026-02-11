@@ -94,6 +94,8 @@ Provide `scripts/import_csv.py`:
 ## API Interfaces
 
 - `GET /api/artists`
+- `POST /api/artists`
+  - Body: `{ artistName }`
 - `GET /api/licks?artist_id=&sort_by=&sort_dir=`
   - Returns lick rows with aggregates:
     - `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
@@ -109,7 +111,8 @@ Provide `scripts/import_csv.py`:
 
 ### Header actions
 
-- `+ Add Lick` opens add-lick modal.
+- If no artist filter is active: show `+ Add Artist`.
+- If artist filter is active: show `+ Add Lick`.
 
 ### Main table
 
@@ -128,7 +131,7 @@ Rules:
 
 - Filter by artist.
 - Sort by any column.
-- Hide Artist column when an artist filter is active.
+- Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
 - URL persists view state:
   - `artist` (artist filter)
@@ -148,7 +151,7 @@ Single cycle button next to artist filter with 3 states:
 
 On narrow screens, rows render as wrapped cards:
 
-- Top line: artist (if shown), lick name, row actions.
+- Top line: artist, lick name, row actions.
 - Metrics line: Goal, Best, %.
 - Date/session line:
   - If one session: `# 1 YYYY-MM-DD`
@@ -177,12 +180,16 @@ Each lick row has:
 
 ### Add lick
 
-Top-level `+` button opens modal with:
+Shown only when artist filter is active. Modal uses currently selected artist and includes:
 
-- Existing artist dropdown
-- Optional new artist input
 - Lick name input
 - Goal RPM input (integer > 0)
+
+### Add artist
+
+Shown only when no artist filter is active:
+
+- Artist name input
 
 ## Testing and Acceptance Criteria
 
@@ -193,7 +200,7 @@ Top-level `+` button opens modal with:
    - today session already exists
 4. Slider range math is correct (`min` multiple-of-5 strictly above best).
 5. Table sorting/filtering works for all columns.
-6. Artist filter hides Artist column.
+6. Artist column stays visible when artist filter is active.
 7. Progress filter cycle works for `All`, `TODO`, `Done`.
 8. URL state persists and restores artist/sort/dir/progress.
 9. Session modal defaults to date descending and supports sort toggles.
@@ -204,8 +211,10 @@ Top-level `+` button opens modal with:
     - upserts duplicate lick/date
     - logs malformed pairs
 11. Device-local date controls "today" behavior.
-12. Docker image builds and app starts on port `3000`.
-13. SQLite file persists across restarts when `/data` is mounted.
+12. `+ Add Artist` is shown only when no artist filter is active and creates artists.
+13. `+ Add Lick` is shown only when artist filter is active and binds to current artist.
+14. Docker image builds and app starts on port `3000`.
+15. SQLite file persists across restarts when `/data` is mounted.
 
 ## Implementation Milestones
 
@@ -218,9 +227,10 @@ Top-level `+` button opens modal with:
 7. Mobile wrapped-row layout and chip-based sorting.
 8. Progress filter cycle (`All/TODO/Done`).
 9. URL-state persistence in main view.
-10. CSV importer script enhancements.
-11. Dockerfile + `.dockerignore` + container run docs.
-12. Test suite and edge-case hardening.
+10. Conditional add flows (`+ Add Artist` / `+ Add Lick`) and dialogs.
+11. CSV importer script enhancements.
+12. Dockerfile + `.dockerignore` + container run docs.
+13. Test suite and edge-case hardening.
 
 ## Reference Docs
 
