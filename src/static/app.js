@@ -95,6 +95,7 @@ class RpmApp extends LitElement {
     if (progress && validProgress.has(progress)) {
       this.progressFilter = progress;
     }
+
   }
 
   syncUrlState() {
@@ -375,7 +376,6 @@ class RpmApp extends LitElement {
   }
 
   render() {
-    const hideArtistCol = Boolean(this.filterArtistId);
     const addDisabledByRange = this.addMin > this.addMax;
     const visibleLicks = this.licks.filter((row) => {
       if (this.progressFilter === "all") {
@@ -445,7 +445,7 @@ class RpmApp extends LitElement {
                                 <td>
                                   <div class="compact-top">
                                     <div>
-                                      ${hideArtistCol ? "" : html`<div class="muted">${row.artist_name}</div>`}
+                                      <div class="muted">${row.artist_name}</div>
                                       <div><strong>${row.lick_name}</strong></div>
                                     </div>
                                     <div class="actions">
@@ -480,7 +480,7 @@ class RpmApp extends LitElement {
                   <table class="table">
                     <thead>
                       <tr>
-                        ${hideArtistCol ? "" : this.header("Artist", "artist")}
+                        ${this.header("Artist", "artist")}
                         ${this.header("Lick", "lick")}
                         ${this.header("Goal", "goal")}
                         ${this.header("Best", "best")}
@@ -493,11 +493,11 @@ class RpmApp extends LitElement {
                     </thead>
                     <tbody>
                       ${visibleLicks.length === 0
-                        ? html`<tr><td class="row-empty" colspan=${hideArtistCol ? 8 : 9}>No licks yet.</td></tr>`
+                        ? html`<tr><td class="row-empty" colspan="9">No licks yet.</td></tr>`
                         : visibleLicks.map(
                             (row) => html`
                               <tr>
-                                ${hideArtistCol ? "" : html`<td>${row.artist_name}</td>`}
+                                <td>${row.artist_name}</td>
                                 <td>${row.lick_name}</td>
                                 <td>${row.goal_rpm}</td>
                                 <td>${this.fmt(row.best_rpm)}</td>
