@@ -22,6 +22,24 @@ Build a one-page, mobile-friendly web app (iOS-inspired UI) for tracking lick pr
 - Frontend: Lit + Shoelace (lightweight web components)
 - Tests: Bun test runner
 - CSV importer: Python CLI script
+- Containerization: Docker with a production-oriented `Dockerfile`
+
+## Dockerfile Requirements
+
+- Add a `Dockerfile` at repo root.
+- Use an official Bun base image (`oven/bun`) pinned to a specific major/minor tag.
+- Set a working directory (for example `/app`).
+- Copy dependency manifests first, install dependencies, then copy source to preserve layer caching.
+- Expose port `3000`.
+- Define runtime env defaults:
+  - `NODE_ENV=production`
+  - `PORT=3000`
+  - `DB_PATH=/data/rpms.sqlite`
+- Persist SQLite data in a mounted directory (`/data`) so container restarts do not lose data.
+- Start command should run the Bun server entrypoint in production mode.
+- Include a `.dockerignore` file to exclude unnecessary files (`.git`, local DB files, `node_modules`, temp/build artifacts).
+- Document canonical run command:
+  - `docker run -p 3000:3000 -v $(pwd)/data:/data <image>`
 
 ## Data Model
 
@@ -142,6 +160,8 @@ Top-level `+` button opens modal with:
    - upserts duplicate lick/date
    - logs malformed pairs
 8. Device-local date controls "today" behavior.
+9. Docker image builds and app starts on port `3000`.
+10. SQLite file persists across restarts when `/data` is mounted.
 
 ## Implementation Milestones
 
@@ -152,7 +172,8 @@ Top-level `+` button opens modal with:
 5. Session modal and add-session modal.
 6. Add-lick modal.
 7. CSV importer script.
-8. Test suite and edge-case hardening.
+8. Dockerfile + `.dockerignore` + container run docs.
+9. Test suite and edge-case hardening.
 
 ## Reference Docs
 
