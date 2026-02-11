@@ -1,86 +1,163 @@
 # RPMs
 
-An web app for tracking RPMs of music practice sessions.
+A web app for tracking RPMs of music practice sessions.
+
+## Goal
+
+Build a one-page, mobile-friendly web app (iOS-inspired UI) for tracking lick progress over time, with local SQLite storage, no auth, typed code, minimal dependencies, no ORM, and a simple test harness.
+
+## Locked Product Decisions
+
+1. Main table rows are **licks** (aggregated from sessions), not sessions.
+2. CSV import ignores derived fields (`Best`, `%`, `First`, `Last`) and recomputes them from sessions.
+3. Disable add-session when `best >= goal` or when a session already exists for today.
+4. "Today" uses the **device local timezone**.
+5. Tech stack: **Bun + Lit + Shoelace**.
 
 ## Tech Stack
 
-Build a web app with the following requirements, research tech stack options:
-* Mobile friendly, minicking native iOS UI
-* Simple clean UI with tables, forms, boxes, etc.
-* One page app
-* No user auth
-* Typed languages preferred
-* Local SQLite for data storage
-* Minimalistic, no heavy frameworks, no ORM, simple test harness
+- Runtime/server: Bun (`Bun.serve`)
+- Backend language: TypeScript
+- DB: SQLite via `bun:sqlite` with raw SQL
+- Frontend: Lit + Shoelace (lightweight web components)
+- Tests: Bun test runner
+- CSV importer: Python CLI script
 
 ## Data Model
 
-Store data in the following relational models:
-* Artist: artist_name string
-* Lick: artist (foreign key), lick_name string, goal_rpm int
-* Session: lick (foreign key), date, rpm int
+### Tables
 
-Relations:
-* Artist:Lick: 1:N mapping
-* Lick: session: 1:N mapping
-* Each artist_name must be unique
-* Each (artist_name, lick_name) must be unique
+- `artists`
+  - `id INTEGER PRIMARY KEY`
+  - `name TEXT NOT NULL UNIQUE`
 
-Also include a Python script that imports CSV directly into SQLite, where the CSV has the following columns:
+- `licks`
+  - `id INTEGER PRIMARY KEY`
+  - `artist_id INTEGER NOT NULL REFERENCES artists(id)`
+  - `name TEXT NOT NULL`
+  - `goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0)`
+  - `UNIQUE(artist_id, name)`
 
-* Artist
-* Lick
-* Goal
-* Best
-* %
-* First
-* Last
-* Date 1
-* RPM 1
-* Date 2
-* RPM 2
-* ...
+- `sessions`
+  - `id INTEGER PRIMARY KEY`
+  - `lick_id INTEGER NOT NULL REFERENCES licks(id)`
+  - `date TEXT NOT NULL` (`YYYY-MM-DD`, device-local calendar date)
+  - `rpm INTEGER NOT NULL CHECK(rpm > 0)`
+  - `UNIQUE(lick_id, date)`
 
-## UI
+### Relationships
+
+- Artist : Lick = 1:N
+- Lick : Session = 1:N
+
+## CSV Import
+
+Provide `scripts/import_csv.py`:
+
+- CLI:
+  - `python scripts/import_csv.py --db data/rpms.sqlite --csv input.csv`
+- Expected columns:
+  - `Artist`, `Lick`, `Goal`, `Best`, `%`, `First`, `Last`, `Date 1`, `RPM 1`, `Date 2`, `RPM 2`, ...
+- Rules:
+  - Use `Artist`, `Lick`, `Goal`, and `Date N` / `RPM N` pairs.
+  - Ignore derived fields: `Best`, `%`, `First`, `Last`.
+  - Duplicate `(lick, date)` rows are **upserted** (replace RPM).
+  - Skip malformed pairs with warnings; continue import.
+
+## API Interfaces
+
+- `GET /api/artists`
+- `GET /api/licks?artist_id=&sort_by=&sort_dir=`
+  - Returns lick rows with aggregates:
+    - `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
+- `POST /api/licks`
+  - Body: `{ artistName, lickName, goalRpm }`
+- `GET /api/licks/:lickId/sessions?sort_by=date|rpm&sort_dir=asc|desc`
+- `POST /api/licks/:lickId/sessions`
+  - Body: `{ rpm }`
+  - Client sends `X-Local-Date: YYYY-MM-DD`
+  - Reject if today already exists or `best >= goal`
+
+## UI Specification
 
 ### Main table
 
-The main UI shows a table with the following columns:
+Columns:
 
-* Artist
-* Lick
-* Goal (RPM)
-* Best (RPM) - best RPM amongst all sessions of the same lick
-* % - percentage of best RPM / goal RPM
-* First (date) - first date from all sessions of the same lick
-* Last (date) - last date from all sessions of the same lick
+- Artist
+- Lick
+- Goal (RPM)
+- Best (RPM)
+- % (`best / goal * 100`, rounded integer)
+- First (date)
+- Last (date)
 
-The table show allow:
-* Filtering by artist
-* Sort by any of the columns
-* If an artist filter is applied, hide the artist column
+Rules:
 
-### Row interactions
+- Filter by artist.
+- Sort by any column.
+- Hide Artist column when an artist filter is active.
+- For no-session licks: show `-` in Best/%/First/Last.
 
-At the end of each row, i.e. lick, show a "..." (expand) and a "+" (add) button.
+### Row actions
 
-The "..." button:
-* Should be grayed out if the lick has 0 sessions
-* Otherwise show a pop up of all sessions of the lick, with columns date & RPM, sortable by either column
+Each lick row has:
 
-The "+" button:
-* Should be grayed out if the last date of the lick == today, or of best RPM == goal RPM
-* Otherwise show a pop up horizontal bar for entering a new RPM, bewteen [min, goal RPM]
-* Where min should be > best RPM and rounded to multiples of 5
-* The bar should move in increments of 5
-* There should be a box for entering exact RPM
-* Once submitted, it should create a new session for today
+- `...` (expand sessions)
+  - Disabled when `session_count == 0`
+  - Opens modal with sessions (`date`, `rpm`), sortable by either column
 
-### Adding new rows
+- `+` (add session)
+  - Disabled when `best >= goal` or today session exists
+  - Opens modal with:
+    - Slider (step 5)
+    - Numeric input
+  - Range:
+    - `min = next multiple of 5 strictly greater than best`
+    - `max = goal`
+    - If `min > max`, disable action
+  - Submit creates today's session
 
-At the top of the main UI, there should be a "+" (add) button for adding new licks.
+### Add lick
 
-The "+" button shows pop up for adding a new lick, and include:
-* Artist combo box, either from existing ones or entering a new one
-* Text box for lick
-* Goal RPM
+Top-level `+` button opens modal with:
+
+- Artist combobox (select existing or enter new)
+- Lick name input
+- Goal RPM input (integer > 0)
+
+## Testing and Acceptance Criteria
+
+1. DB constraints enforce uniqueness and positive RPM/goal.
+2. Aggregates are correct for 0/1/N sessions.
+3. Add-session disable logic is correct for:
+   - `best >= goal`
+   - today session already exists
+4. Slider range math is correct (`min` multiple-of-5 strictly above best).
+5. Table sorting/filtering works for all columns.
+6. Artist filter hides Artist column.
+7. CSV importer:
+   - ignores derived fields
+   - imports date/RPM pairs
+   - upserts duplicate lick/date
+   - logs malformed pairs
+8. Device-local date controls "today" behavior.
+
+## Implementation Milestones
+
+1. Project bootstrap (Bun server + Lit app skeleton + DB init).
+2. SQL schema + query layer (no ORM).
+3. API routes + validation + aggregate queries.
+4. Main table UI (fetch, filter, sort).
+5. Session modal and add-session modal.
+6. Add-lick modal.
+7. CSV importer script.
+8. Test suite and edge-case hardening.
+
+## Reference Docs
+
+- Bun SQLite: https://bun.sh/docs/runtime/sqlite
+- Bun HTTP server: https://bun.sh/docs/runtime/http/server
+- Bun tests: https://bun.sh/docs/test/writing-tests
+- Lit docs: https://lit.dev/docs/
+- Shoelace docs: https://shoelace.style/getting-started/installation
