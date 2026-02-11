@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""Import RPM CSV data into SQLite.
+
+Expected columns include Artist, Lick, Goal, and any number of Date N / RPM N pairs.
+Derived columns (Best, %, First, Last) are ignored.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import re
+import sqlite3
+from pathlib import Path
+
+DATE_COL_RE = re.compile(r"^Date\s+(\d+)$")
+RPM_COL_RE = re.compile(r"^RPM\s+(\d+)$")
+
+
+SCHEMA_SQL = """
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS artists (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS licks (
+  id INTEGER PRIMARY KEY,
+  artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0),
+  UNIQUE(artist_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id INTEGER PRIMARY KEY,
+  lick_id INTEGER NOT NULL REFERENCES licks(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  rpm INTEGER NOT NULL CHECK(rpm > 0),
+  UNIQUE(lick_id, date)
+);
+"""
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Import RPM CSV into SQLite")
+    parser.add_argument("--db", required=True, help="SQLite database path")
+    parser.add_argument("--csv", required=True, help="CSV file path")
+    return parser.parse_args()
+
+
+def init_schema(conn: sqlite3.Connection) -> None:
+    conn.executescript(SCHEMA_SQL)
+
+
+def resolve_pairs(fieldnames: list[str]) -> list[tuple[str, str]]:
+    dates: dict[int, str] = {}
+    rpms: dict[int, str] = {}
+    for name in fieldnames:
+        if not name:
+            continue
+        m_date = DATE_COL_RE.match(name.strip())
+        if m_date:
+            dates[int(m_date.group(1))] = name
+            continue
+        m_rpm = RPM_COL_RE.match(name.strip())
+        if m_rpm:
+            rpms[int(m_rpm.group(1))] = name
+
+    pairs: list[tuple[str, str]] = []
+    for i in sorted(set(dates.keys()) & set(rpms.keys())):
+        pairs.append((dates[i], rpms[i]))
+    return pairs
+
+
+def ensure_artist(conn: sqlite3.Connection, name: str) -> int:
+    conn.execute("INSERT OR IGNORE INTO artists(name) VALUES (?)", (name,))
+    row = conn.execute("SELECT id FROM artists WHERE name = ?", (name,)).fetchone()
+    if row is None:
+        raise RuntimeError(f"Failed to resolve artist: {name}")
+    return int(row[0])
+
+
+def ensure_lick(conn: sqlite3.Connection, artist_id: int, name: str, goal: int) -> int:
+    existing = conn.execute(
+        "SELECT id, goal_rpm FROM licks WHERE artist_id = ? AND name = ?",
+        (artist_id, name),
+    ).fetchone()
+    if existing:
+        lick_id = int(existing[0])
+        current_goal = int(existing[1])
+        if current_goal != goal:
+            conn.execute("UPDATE licks SET goal_rpm = ? WHERE id = ?", (goal, lick_id))
+        return lick_id
+
+    conn.execute(
+        "INSERT INTO licks(artist_id, name, goal_rpm) VALUES (?, ?, ?)",
+        (artist_id, name, goal),
+    )
+    row = conn.execute(
+        "SELECT id FROM licks WHERE artist_id = ? AND name = ?",
+        (artist_id, name),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError(f"Failed to create lick: {name}")
+    return int(row[0])
+
+
+def import_csv(db_path: Path, csv_path: Path) -> None:
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys = ON")
+    init_schema(conn)
+
+    with csv_path.open("r", newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise RuntimeError("CSV has no headers")
+
+        pairs = resolve_pairs(reader.fieldnames)
+        imported = 0
+        skipped = 0
+
+        for row_no, row in enumerate(reader, start=2):
+            artist = (row.get("Artist") or "").strip()
+            lick = (row.get("Lick") or "").strip()
+            goal_raw = (row.get("Goal") or "").strip()
+
+            if not artist or not lick or not goal_raw:
+                print(f"row {row_no}: skipped (missing Artist/Lick/Goal)")
+                skipped += 1
+                continue
+
+            try:
+                goal = int(float(goal_raw))
+            except ValueError:
+                print(f"row {row_no}: skipped (invalid Goal: {goal_raw})")
+                skipped += 1
+                continue
+
+            if goal <= 0:
+                print(f"row {row_no}: skipped (Goal must be > 0)")
+                skipped += 1
+                continue
+
+            artist_id = ensure_artist(conn, artist)
+            lick_id = ensure_lick(conn, artist_id, lick, goal)
+
+            for date_col, rpm_col in pairs:
+                date_raw = (row.get(date_col) or "").strip()
+                rpm_raw = (row.get(rpm_col) or "").strip()
+                if not date_raw and not rpm_raw:
+                    continue
+                if not date_raw or not rpm_raw:
+                    print(f"row {row_no}: warning (partial pair {date_col}/{rpm_col})")
+                    continue
+                if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_raw):
+                    print(f"row {row_no}: warning (invalid date {date_raw})")
+                    continue
+                try:
+                    rpm = int(float(rpm_raw))
+                except ValueError:
+                    print(f"row {row_no}: warning (invalid rpm {rpm_raw})")
+                    continue
+                if rpm <= 0:
+                    print(f"row {row_no}: warning (rpm must be > 0)")
+                    continue
+
+                conn.execute(
+                    """
+                    INSERT INTO sessions(lick_id, date, rpm)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(lick_id, date) DO UPDATE SET rpm = excluded.rpm
+                    """,
+                    (lick_id, date_raw, rpm),
+                )
+                imported += 1
+
+        conn.commit()
+        print(f"imported sessions: {imported}")
+        print(f"skipped rows: {skipped}")
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    import_csv(Path(args.db), Path(args.csv))

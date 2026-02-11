@@ -1,0 +1,117 @@
+:root {
+  --bg: #f3f5f8;
+  --card: #ffffff;
+  --ink: #1a2433;
+  --muted: #6b7480;
+  --accent: #0f6f9f;
+  --line: #d8dee6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 45%, #e7ebf0 100%);
+}
+
+.container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(17, 28, 45, 0.08);
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94rem;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th button {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.table th button.active {
+  color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.row-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px;
+}
+
+.range-grid {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .container {
+    padding: 14px 10px 24px;
+  }
+  .title {
+    font-size: 1.2rem;
+  }
+  .table {
+    font-size: 0.88rem;
+  }
+}

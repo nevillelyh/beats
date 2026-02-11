@@ -1,0 +1,9 @@
+.git
+.gitignore
+node_modules
+bun.lock
+*.sqlite
+*.sqlite3
+data/
+coverage/
+.DS_Store
