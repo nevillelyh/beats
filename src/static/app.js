@@ -17,6 +17,7 @@ class RpmApp extends LitElement {
     addMin: { state: true },
     addMax: { state: true },
     compact: { state: true },
+    progressFilter: { state: true },
   };
 
   createRenderRoot() {
@@ -40,6 +41,7 @@ class RpmApp extends LitElement {
     this.addValue = 0;
     this.addMin = 0;
     this.addMax = 0;
+    this.progressFilter = "all";
     this.compact = typeof window !== "undefined" ? window.innerWidth <= 720 : false;
     this._onResize = () => {
       const next = window.innerWidth <= 720;
@@ -173,6 +175,18 @@ class RpmApp extends LitElement {
     await this.reloadLicks();
   }
 
+  cycleProgressFilter() {
+    if (this.progressFilter === "all") {
+      this.progressFilter = "todo";
+      return;
+    }
+    if (this.progressFilter === "todo") {
+      this.progressFilter = "done";
+      return;
+    }
+    this.progressFilter = "all";
+  }
+
   async openSessions(lick) {
     this.activeLick = lick;
     this.sessionSortBy = "date";
@@ -284,6 +298,16 @@ class RpmApp extends LitElement {
   render() {
     const hideArtistCol = Boolean(this.filterArtistId);
     const addDisabledByRange = this.addMin > this.addMax;
+    const visibleLicks = this.licks.filter((row) => {
+      if (this.progressFilter === "all") {
+        return true;
+      }
+      if (this.progressFilter === "todo") {
+        return row.pct_of_goal !== null && row.pct_of_goal < 100;
+      }
+      return row.pct_of_goal === 100;
+    });
+    const progressLabel = this.progressFilter === "all" ? "All" : this.progressFilter === "todo" ? "TODO" : "Done";
 
     return html`
       <div class="container">
@@ -305,6 +329,9 @@ class RpmApp extends LitElement {
                     </option>`,
                 )}
               </select>
+              <button class="btn btn-small chip-active" @click=${this.cycleProgressFilter}>
+                ${progressLabel}
+              </button>
               ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
             </div>
           </div>
@@ -329,9 +356,9 @@ class RpmApp extends LitElement {
               ? html`
                   <table class="table">
                     <tbody>
-                      ${this.licks.length === 0
+                      ${visibleLicks.length === 0
                         ? html`<tr><td class="row-empty">No licks yet.</td></tr>`
-                        : this.licks.map(
+                        : visibleLicks.map(
                             (row) => html`
                               <tr class="compact-main">
                                 <td>
@@ -384,9 +411,9 @@ class RpmApp extends LitElement {
                       </tr>
                     </thead>
                     <tbody>
-                      ${this.licks.length === 0
+                      ${visibleLicks.length === 0
                         ? html`<tr><td class="row-empty" colspan=${hideArtistCol ? 8 : 9}>No licks yet.</td></tr>`
-                        : this.licks.map(
+                        : visibleLicks.map(
                             (row) => html`
                               <tr>
                                 ${hideArtistCol ? "" : html`<td>${row.artist_name}</td>`}
