@@ -154,8 +154,8 @@ On narrow screens, rows render as wrapped cards:
 - Top line: artist, lick name, row actions.
 - Metrics line: Goal, Best, %.
 - Date/session line:
-  - If one session: `# 1 YYYY-MM-DD`
-  - If multiple sessions: `# N YYYY-MM-DD - YYYY-MM-DD`
+  - Session badge: `# N`
+  - Separate stylized `First` and `Last` date pills.
 - Sorting in mobile uses horizontal sort chips (instead of dropdowns).
 
 ### Row actions
