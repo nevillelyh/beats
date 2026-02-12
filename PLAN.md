@@ -133,6 +133,10 @@ Rules:
 - Sort by any column.
 - Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
+- Goal-hit highlighting:
+  - When `Best >= Goal` and `% >= 100`, values are emphasized.
+  - Desktop table uses bold green text (no pill/background) to preserve row alignment.
+  - Wrapped mobile cards use green pill-style emphasis.
 - URL persists view state:
   - `artist` (artist filter)
   - `sort` (sort field)
@@ -214,8 +218,9 @@ Shown only when no artist filter is active:
 11. Device-local date controls "today" behavior.
 12. `+ Add Artist` is shown only when no artist filter is active and creates artists.
 13. `+ Add Lick` is shown only when artist filter is active and binds to current artist.
-14. Docker image builds and app starts on port `3000`.
-15. SQLite file persists across restarts when `/data` is mounted.
+14. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
+15. Docker image builds and app starts on port `3000`.
+16. SQLite file persists across restarts when `/data` is mounted.
 
 ## Implementation Milestones
 

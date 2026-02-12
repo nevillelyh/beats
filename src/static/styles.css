@@ -283,6 +283,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.goal-hit {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-weight: 800;
+}
+
+.goal-hit-text {
+  color: #166534;
+  font-weight: 800;
+}
+
 input,
 select {
   border: 1px solid #c7d2df;

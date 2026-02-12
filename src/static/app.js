@@ -485,8 +485,12 @@ class RpmApp extends LitElement {
                                   </div>
                                   <div class="compact-meta">
                                     <span>Goal ${row.goal_rpm}</span>
-                                    <span>Best ${this.fmt(row.best_rpm)}</span>
-                                    <span>${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}</span>
+                                    <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit" : ""}>
+                                      Best ${this.fmt(row.best_rpm)}
+                                    </span>
+                                    <span class=${row.pct_of_goal !== null && row.pct_of_goal >= 100 ? "goal-hit" : ""}>
+                                      ${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}
+                                    </span>
                                   </div>
                                   <div class="compact-dates">
                                     <span class="session-count"># ${row.session_count}</span>
@@ -530,8 +534,16 @@ class RpmApp extends LitElement {
                                 <td>${row.artist_name}</td>
                                 <td>${row.lick_name}</td>
                                 <td>${row.goal_rpm}</td>
-                                <td>${this.fmt(row.best_rpm)}</td>
-                                <td>${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}</td>
+                                <td>
+                                  <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>
+                                    ${this.fmt(row.best_rpm)}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span class=${row.pct_of_goal !== null && row.pct_of_goal >= 100 ? "goal-hit-text" : ""}>
+                                    ${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}
+                                  </span>
+                                </td>
                                 <td>${row.session_count}</td>
                                 <td>${this.fmt(row.first_date)}</td>
                                 <td>${this.fmt(row.last_date)}</td>
