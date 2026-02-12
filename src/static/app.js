@@ -288,6 +288,28 @@ class RpmApp extends LitElement {
     this.addValue = Number(event.target.value || 0);
   }
 
+  adjustAddValue(delta) {
+    const next = this.addValue + delta;
+    this.addValue = Math.max(this.addMin, Math.min(this.addMax, next));
+  }
+
+  updateGoalValue(event) {
+    const raw = Number(event.target.value || 0);
+    const clamped = Math.max(1, raw);
+    event.target.value = String(clamped);
+  }
+
+  adjustGoalValue(delta) {
+    const input = this.el("goalRpm");
+    if (!input) {
+      return;
+    }
+    const current = Number(input.value || 0);
+    const base = Number.isFinite(current) && current > 0 ? current : 0;
+    const next = Math.max(1, base + delta);
+    input.value = String(next);
+  }
+
   async submitAddSession() {
     if (!this.activeLick) {
       return;
@@ -332,6 +354,10 @@ class RpmApp extends LitElement {
     if (!this.filterArtistId) {
       this.error = "Select an artist first";
       return;
+    }
+    const goalInput = this.el("goalRpm");
+    if (goalInput && !goalInput.value) {
+      goalInput.value = "100";
     }
     this.openDialog("addLickDialog");
   }
@@ -553,24 +579,25 @@ class RpmApp extends LitElement {
         <h3>Add Session</h3>
         <div class="range-grid">
           <div class="muted">Allowed range: ${this.addMin} - ${this.addMax}</div>
-          <input
-            type="range"
-            min=${this.addMin}
-            max=${this.addMax}
-            step="5"
-            .value=${String(this.addValue)}
-            ?disabled=${addDisabledByRange}
-            @input=${this.updateAddValue}
-          />
-          <input
-            type="number"
-            min=${this.addMin}
-            max=${this.addMax}
-            step="5"
-            .value=${String(this.addValue)}
-            ?disabled=${addDisabledByRange}
-            @input=${this.updateAddValue}
-          />
+          <div class="rpm-stepper">
+            <button class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue <= this.addMin} @click=${() => this.adjustAddValue(-5)}>
+              -
+            </button>
+            <input
+              id="addRpmInput"
+              class="rpm-number-input"
+              min=${this.addMin}
+              max=${this.addMax}
+              step="5"
+              type="number"
+              .value=${String(this.addValue)}
+              ?disabled=${addDisabledByRange}
+              @input=${this.updateAddValue}
+            />
+            <button class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue >= this.addMax} @click=${() => this.adjustAddValue(5)}>
+              +
+            </button>
+          </div>
         </div>
         <div class="dialog-actions">
           <button class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
@@ -588,7 +615,18 @@ class RpmApp extends LitElement {
           <label for="lickName">Lick</label>
           <input id="lickName" />
           <label for="goalRpm">Goal RPM</label>
-          <input id="goalRpm" type="number" min="1" step="1" />
+          <div class="rpm-stepper">
+            <button class="btn btn-step" @click=${() => this.adjustGoalValue(-5)}>-</button>
+            <input
+              id="goalRpm"
+              class="rpm-number-input"
+              type="number"
+              min="1"
+              step="5"
+              @input=${this.updateGoalValue}
+            />
+            <button class="btn btn-step" @click=${() => this.adjustGoalValue(5)}>+</button>
+          </div>
         </div>
         <div class="dialog-actions">
           <button class="btn" @click=${() => this.closeDialog("addLickDialog")}>Cancel</button>

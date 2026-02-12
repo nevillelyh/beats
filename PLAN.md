@@ -170,12 +170,12 @@ Each lick row has:
 - `+` (add session)
   - Disabled when `best >= goal` or today session exists
   - Opens modal with:
-    - Slider (step 5)
-    - Numeric input
+    - Stepper controls: `- [RPM number] +`
   - Range:
     - `min = next multiple of 5 strictly greater than best`
     - `max = goal`
     - If `min > max`, disable action
+    - `-` and `+` adjust by increments of `5`
   - Submit creates today's session
 
 ### Add lick
@@ -183,7 +183,8 @@ Each lick row has:
 Shown only when artist filter is active. Modal uses currently selected artist and includes:
 
 - Lick name input
-- Goal RPM input (integer > 0)
+- Goal RPM stepper: `- [RPM number] +` (increment 5, minimum 1)
+- Default Goal RPM is `100` when opening the dialog
 
 ### Add artist
 
@@ -198,7 +199,7 @@ Shown only when no artist filter is active:
 3. Add-session disable logic is correct for:
    - `best >= goal`
    - today session already exists
-4. Slider range math is correct (`min` multiple-of-5 strictly above best).
+4. Add-session stepper range math is correct (`min` multiple-of-5 strictly above best, bounded by goal).
 5. Table sorting/filtering works for all columns.
 6. Artist column stays visible when artist filter is active.
 7. Progress filter cycle works for `All`, `TODO`, `Done`.

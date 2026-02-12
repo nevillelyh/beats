@@ -182,6 +182,40 @@ body {
   gap: 10px;
 }
 
+.rpm-stepper {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.rpm-stepper .rpm-number-input {
+  width: 100%;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  min-height: 52px;
+}
+
+.btn-step {
+  min-width: 52px;
+  min-height: 52px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Hide native number spinners so stepper buttons are the only controls. */
+.rpm-number-input::-webkit-outer-spin-button,
+.rpm-number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.rpm-number-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .compact-main td {
   white-space: normal;
 }
