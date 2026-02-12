@@ -62,6 +62,16 @@ body {
   overflow-x: auto;
 }
 
+.lick-link {
+  color: #0f6f9f;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.lick-link:hover {
+  text-decoration: underline;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

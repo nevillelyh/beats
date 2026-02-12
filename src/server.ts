@@ -89,11 +89,12 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
         artistName?: string;
         lickName?: string;
         goalRpm?: number;
+        url?: string;
       };
       if (!body.artistName || !body.lickName || !body.goalRpm) {
         return badRequest("artistName, lickName, and goalRpm are required");
       }
-      const id = createLick(db, body.artistName, body.lickName, body.goalRpm);
+      const id = createLick(db, body.artistName, body.lickName, body.goalRpm, body.url);
       return json({ id }, 201);
     } catch (err) {
       const message = (err as Error).message;

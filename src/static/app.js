@@ -330,6 +330,7 @@ class RpmApp extends LitElement {
     const activeArtist = this.artists.find((artist) => String(artist.id) === this.filterArtistId);
     const artistName = activeArtist?.name || "";
     const lickName = this.el("lickName").value.trim();
+    const url = this.el("lickUrl").value.trim();
     const goalRpm = Number(this.el("goalRpm").value);
     if (!artistName) {
       this.error = "Select an artist before adding a lick";
@@ -339,9 +340,10 @@ class RpmApp extends LitElement {
     try {
       await this.api("/api/licks", {
         method: "POST",
-        body: JSON.stringify({ artistName, lickName, goalRpm }),
+        body: JSON.stringify({ artistName, lickName, goalRpm, url }),
       });
       this.el("lickName").value = "";
+      this.el("lickUrl").value = "";
       this.el("goalRpm").value = "";
       this.closeDialog("addLickDialog");
       await this.loadAll();
@@ -383,6 +385,13 @@ class RpmApp extends LitElement {
 
   fmt(value) {
     return value === null || value === undefined ? "-" : String(value);
+  }
+
+  renderLickName(row) {
+    if (row.lick_url) {
+      return html`<a class="lick-link" href=${row.lick_url} target="_blank" rel="noopener noreferrer">${row.lick_name}</a>`;
+    }
+    return html`${row.lick_name}`;
   }
 
   header(label, key) {
@@ -472,7 +481,7 @@ class RpmApp extends LitElement {
                                   <div class="compact-top">
                                     <div>
                                       <div class="muted">${row.artist_name}</div>
-                                      <div><strong>${row.lick_name}</strong></div>
+                                      <div><strong>${this.renderLickName(row)}</strong></div>
                                     </div>
                                     <div class="actions">
                                       <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
@@ -532,7 +541,7 @@ class RpmApp extends LitElement {
                             (row) => html`
                               <tr>
                                 <td>${row.artist_name}</td>
-                                <td>${row.lick_name}</td>
+                                <td>${this.renderLickName(row)}</td>
                                 <td>${row.goal_rpm}</td>
                                 <td>
                                   <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>
@@ -626,6 +635,8 @@ class RpmApp extends LitElement {
           </div>
           <label for="lickName">Lick</label>
           <input id="lickName" />
+          <label for="lickUrl">URL (optional)</label>
+          <input id="lickUrl" type="url" placeholder="https://..." />
           <label for="goalRpm">Goal RPM</label>
           <div class="rpm-stepper">
             <button class="btn btn-step" @click=${() => this.adjustGoalValue(-5)}>-</button>

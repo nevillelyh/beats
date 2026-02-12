@@ -55,6 +55,7 @@ Build a one-page, mobile-friendly web app (iOS-inspired UI) for tracking lick pr
   - `id INTEGER PRIMARY KEY`
   - `artist_id INTEGER NOT NULL REFERENCES artists(id)`
   - `name TEXT NOT NULL`
+  - `url TEXT NULL` (optional external reference URL)
   - `goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0)`
   - `UNIQUE(artist_id, name)`
 
@@ -98,9 +99,9 @@ Provide `scripts/import_csv.py`:
   - Body: `{ artistName }`
 - `GET /api/licks?artist_id=&sort_by=&sort_dir=`
   - Returns lick rows with aggregates:
-    - `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
+    - `lick_url`, `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
 - `POST /api/licks`
-  - Body: `{ artistName, lickName, goalRpm }`
+  - Body: `{ artistName, lickName, goalRpm, url? }`
 - `GET /api/licks/:lickId/sessions?sort_by=date|rpm&sort_dir=asc|desc`
 - `POST /api/licks/:lickId/sessions`
   - Body: `{ rpm }`
@@ -133,6 +134,7 @@ Rules:
 - Sort by any column.
 - Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
+- If a lick has a URL, clicking the lick name opens it in a new tab.
 - Goal-hit highlighting:
   - When `Best >= Goal` and `% >= 100`, values are emphasized.
   - Desktop table uses bold green text (no pill/background) to preserve row alignment.
@@ -187,6 +189,7 @@ Each lick row has:
 Shown only when artist filter is active. Modal uses currently selected artist and includes:
 
 - Lick name input
+- Optional URL input
 - Goal RPM stepper: `- [RPM number] +` (increment 5, minimum 1)
 - Default Goal RPM is `100` when opening the dialog
 
@@ -218,9 +221,10 @@ Shown only when no artist filter is active:
 11. Device-local date controls "today" behavior.
 12. `+ Add Artist` is shown only when no artist filter is active and creates artists.
 13. `+ Add Lick` is shown only when artist filter is active and binds to current artist.
-14. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
-15. Docker image builds and app starts on port `3000`.
-16. SQLite file persists across restarts when `/data` is mounted.
+14. Optional lick URL is stored and lick name opens URL in a new tab when present.
+15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
+16. Docker image builds and app starts on port `3000`.
+17. SQLite file persists across restarts when `/data` is mounted.
 
 ## Implementation Milestones
 
@@ -234,9 +238,10 @@ Shown only when no artist filter is active:
 8. Progress filter cycle (`All/TODO/Done`).
 9. URL-state persistence in main view.
 10. Conditional add flows (`+ Add Artist` / `+ Add Lick`) and dialogs.
-11. CSV importer script enhancements.
-12. Dockerfile + `.dockerignore` + container run docs.
-13. Test suite and edge-case hardening.
+11. Optional lick URL data flow (schema, API, add-lick form, link rendering).
+12. CSV importer script enhancements.
+13. Dockerfile + `.dockerignore` + container run docs.
+14. Test suite and edge-case hardening.
 
 ## Reference Docs
 

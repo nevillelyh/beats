@@ -11,6 +11,7 @@ export type LickAggregate = {
   artist_id: number;
   artist_name: string;
   lick_name: string;
+  lick_url: string | null;
   goal_rpm: number;
   best_rpm: number | null;
   pct_of_goal: number | null;
@@ -52,6 +53,12 @@ export function openDb(path: string): Database {
 export function initSchema(db: Database): void {
   const sql = readFileSync("src/schema.sql", "utf8");
   db.exec(sql);
+  // Lightweight migration for existing DBs created before lick URL support.
+  try {
+    db.exec("ALTER TABLE licks ADD COLUMN url TEXT");
+  } catch (_err) {
+    // Ignore duplicate-column errors.
+  }
 }
 
 export function getArtists(db: Database): Artist[] {
@@ -81,6 +88,7 @@ export function createLick(
   artistName: string,
   lickName: string,
   goalRpm: number,
+  lickUrl?: string,
 ): number {
   const cleanArtist = artistName.trim();
   const cleanLick = lickName.trim();
@@ -90,6 +98,7 @@ export function createLick(
   if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
     throw new Error("goalRpm must be a positive integer");
   }
+  const cleanUrl = lickUrl?.trim() ? lickUrl.trim() : null;
 
   db.transaction(() => {
     db.query("INSERT OR IGNORE INTO artists(name) VALUES (?)").run(cleanArtist);
@@ -100,9 +109,10 @@ export function createLick(
       throw new Error("Failed to resolve artist");
     }
 
-    db.query("INSERT INTO licks(artist_id, name, goal_rpm) VALUES (?, ?, ?)").run(
+    db.query("INSERT INTO licks(artist_id, name, url, goal_rpm) VALUES (?, ?, ?, ?)").run(
       row.id,
       cleanLick,
+      cleanUrl,
       goalRpm,
     );
   })();
@@ -138,6 +148,7 @@ export function getLicks(
       a.id AS artist_id,
       a.name AS artist_name,
       l.name AS lick_name,
+      l.url AS lick_url,
       l.goal_rpm,
       MAX(s.rpm) AS best_rpm,
       CASE
@@ -158,7 +169,7 @@ export function getLicks(
     JOIN artists a ON a.id = l.artist_id
     LEFT JOIN sessions s ON s.lick_id = l.id
     %ARTIST_FILTER%
-    GROUP BY l.id, a.id, a.name, l.name, l.goal_rpm
+    GROUP BY l.id, a.id, a.name, l.name, l.url, l.goal_rpm
     ORDER BY ${sortColumn} ${sortDirection}, l.id ASC
   `;
 

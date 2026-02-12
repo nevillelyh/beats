@@ -22,6 +22,7 @@ beforeEach(() => {
       id INTEGER PRIMARY KEY,
       artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
+      url TEXT,
       goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0),
       UNIQUE(artist_id, name)
     );
