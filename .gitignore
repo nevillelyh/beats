@@ -3,3 +3,4 @@ data/*.sqlite
 data/*.sqlite3
 bun.lock
 coverage/
+**.pyc
