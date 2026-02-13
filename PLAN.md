@@ -201,6 +201,7 @@ Each lick row has:
 - Axes:
   - X-axis month labels
   - Y-axis weekday labels
+- On wide desktop screens, the heatmap card should size to chart content instead of stretching across the full container.
 
 ### Add lick
 

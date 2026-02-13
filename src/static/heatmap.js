@@ -44,13 +44,13 @@ function renderWeekdayAxis(axis) {
   }
 }
 
-function renderMonthAxis(axis, startWeek) {
+function renderMonthAxis(axis, startWeek, weeks) {
   axis.textContent = "";
-  axis.style.setProperty("--weeks", String(WEEKS));
+  axis.style.setProperty("--weeks", String(weeks));
 
   let lastLabeledMonth = -1;
   let lastLabeledWeek = -10;
-  for (let week = 0; week < WEEKS; week += 1) {
+  for (let week = 0; week < weeks; week += 1) {
     const weekStart = new Date(startWeek);
     weekStart.setDate(startWeek.getDate() + week * 7);
 
@@ -107,21 +107,22 @@ async function loadHeatmap() {
     const rows = payload.data || [];
     const countByDate = new Map(rows.map((row) => [row.date, row.session_count]));
     const maxCount = rows.reduce((max, row) => Math.max(max, row.session_count), 0);
+    const weeks = WEEKS;
 
     const today = new Date();
     today.setHours(12, 0, 0, 0);
     const endWeek = startOfWeekSunday(today);
     const startWeek = new Date(endWeek);
-    startWeek.setDate(startWeek.getDate() - (WEEKS - 1) * 7);
+    startWeek.setDate(startWeek.getDate() - (weeks - 1) * 7);
 
     renderWeekdayAxis(weekdayAxis);
-    renderMonthAxis(monthAxis, startWeek);
+    renderMonthAxis(monthAxis, startWeek, weeks);
 
     let total = 0;
     let activeDays = 0;
     grid.textContent = "";
 
-    for (let week = 0; week < WEEKS; week += 1) {
+    for (let week = 0; week < weeks; week += 1) {
       for (let day = 0; day < 7; day += 1) {
         const current = new Date(startWeek);
         current.setDate(startWeek.getDate() + week * 7 + day);
@@ -147,7 +148,7 @@ async function loadHeatmap() {
       }
     }
 
-    summary.textContent = `${total} sessions over ${activeDays} active days in the last ${WEEKS} weeks`;
+    summary.textContent = `${total} sessions over ${activeDays} active days in the last ${weeks} weeks`;
   } catch (err) {
     summary.textContent = err instanceof Error ? err.message : "Failed to load heatmap";
   }
