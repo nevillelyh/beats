@@ -417,7 +417,7 @@ class RpmApp extends LitElement {
         return true;
       }
       if (this.progressFilter === "todo") {
-        return row.pct_of_goal !== null && row.pct_of_goal < 100;
+        return row.pct_of_goal === null || row.pct_of_goal < 100;
       }
       return row.pct_of_goal === 100;
     });
