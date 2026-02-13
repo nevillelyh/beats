@@ -51,7 +51,8 @@ export function openDb(path: string): Database {
 }
 
 export function initSchema(db: Database): void {
-  const sql = readFileSync("src/schema.sql", "utf8");
+  const schemaPath = new URL("./schema.sql", import.meta.url);
+  const sql = readFileSync(schemaPath, "utf8");
   db.exec(sql);
   // Lightweight migration for existing DBs created before lick URL support.
   try {
