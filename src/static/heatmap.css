@@ -1,0 +1,114 @@
+.heatmap-card {
+  --cell-size: 12px;
+  --cell-gap: 3px;
+  --axis-width: 34px;
+  --month-axis-height: 16px;
+  --weeks: 53;
+}
+
+.heatmap-card {
+  padding: 16px;
+}
+
+.heatmap-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.heatmap-wrap {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.heatmap-chart {
+  display: grid;
+  grid-template-columns: var(--axis-width) max-content;
+  grid-template-rows: var(--month-axis-height) max-content;
+  column-gap: 6px;
+  row-gap: 6px;
+  width: max-content;
+}
+
+.heatmap-month-spacer {
+  width: var(--axis-width);
+  height: var(--month-axis-height);
+}
+
+.heatmap-month-axis {
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), var(--cell-size));
+  column-gap: var(--cell-gap);
+  height: var(--month-axis-height);
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--muted);
+  width: max-content;
+}
+
+.heatmap-month-axis span {
+  transform: translateY(1px);
+  white-space: nowrap;
+}
+
+.heatmap-weekday-axis {
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell-size));
+  row-gap: var(--cell-gap);
+  width: var(--axis-width);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.heatmap-weekday-axis span {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 4px;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, var(--cell-size));
+  grid-auto-columns: var(--cell-size);
+  gap: var(--cell-gap);
+  width: max-content;
+}
+
+.pixel {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  border-radius: 2px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  display: inline-block;
+}
+
+.level-0 {
+  background: #ebedf0;
+}
+
+.level-1 {
+  background: #9be9a8;
+}
+
+.level-2 {
+  background: #40c463;
+}
+
+.level-3 {
+  background: #30a14e;
+}
+
+.level-4 {
+  background: #216e39;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

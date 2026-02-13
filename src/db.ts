@@ -28,6 +28,11 @@ export type Session = {
   rpm: number;
 };
 
+export type HeatmapDay = {
+  date: string;
+  session_count: number;
+};
+
 export type SessionRpmRange = {
   min: number;
   max: number;
@@ -272,6 +277,19 @@ export function getSessions(
        ORDER BY ${sortColumn} ${sortDirection}, id ASC`,
     )
     .all(lickId) as Session[];
+}
+
+export function getHeatmap(db: Database): HeatmapDay[] {
+  return db
+    .query(
+      `SELECT
+         date,
+         COUNT(*) AS session_count
+       FROM sessions
+       GROUP BY date
+       ORDER BY date ASC`,
+    )
+    .all() as HeatmapDay[];
 }
 
 export function normalizeLocalDate(value: string | null | undefined): string {

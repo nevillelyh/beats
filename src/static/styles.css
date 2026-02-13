@@ -37,6 +37,12 @@ body {
   font-size: 1.4rem;
 }
 
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);

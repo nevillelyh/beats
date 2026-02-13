@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite";
 import {
   addSession,
   createLick,
+  getHeatmap,
   getLicks,
   getSessionRpmRange,
   hasSessionForDate,
@@ -78,5 +79,17 @@ describe("db behavior", () => {
   test("session rpm range handles missing best rpm", () => {
     expect(getSessionRpmRange(null, 180)).toEqual({ min: 1, max: 180 });
   });
+
+  test("heatmap aggregates session counts by date", () => {
+    const lickA = createLick(db, "Pat", "Line A", 180);
+    const lickB = createLick(db, "Pat", "Line B", 180);
+    addSession(db, lickA, "2026-02-10", 120);
+    addSession(db, lickB, "2026-02-10", 130);
+    addSession(db, lickA, "2026-02-11", 135);
+
+    expect(getHeatmap(db)).toEqual([
+      { date: "2026-02-10", session_count: 2 },
+      { date: "2026-02-11", session_count: 1 },
+    ]);
   });
 });
