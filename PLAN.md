@@ -4,7 +4,7 @@ A web app for tracking RPMs of music practice sessions.
 
 ## Goal
 
-Build a one-page, mobile-friendly web app (iOS-inspired UI) for tracking lick progress over time, with local SQLite storage, no auth, typed code, minimal dependencies, no ORM, and a simple test harness.
+Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress over time, with local SQLite storage, no auth, typed code, minimal dependencies, no ORM, and a simple test harness.
 
 ## Locked Product Decisions
 
@@ -15,6 +15,7 @@ Build a one-page, mobile-friendly web app (iOS-inspired UI) for tracking lick pr
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
+8. Add a dedicated heatmap page (GitHub-style contribution grid) reachable from the main header.
 
 ## Tech Stack
 
@@ -106,7 +107,11 @@ Provide `scripts/import_csv.py`:
 - `POST /api/licks/:lickId/sessions`
   - Body: `{ rpm }`
   - Client sends `X-Local-Date: YYYY-MM-DD`
-  - Reject if today already exists or `best >= goal`
+  - Reject if today already exists, `best >= goal`, or `rpm` is outside `[min, goal]`
+  - `min` is `1` when no previous session exists; otherwise `best + 1`
+- `GET /api/heatmap`
+  - Returns per-day practice density:
+    - `date`, `session_count`
 
 ## UI Specification
 
@@ -178,11 +183,23 @@ Each lick row has:
   - Opens modal with:
     - Stepper controls: `- [RPM number] +`
   - Range:
-    - `min = next multiple of 5 strictly greater than best`
+    - `min = 1` if no previous session exists, else `best + 1`
     - `max = goal`
     - If `min > max`, disable action
     - `-` and `+` adjust by increments of `5`
+    - Default RPM value is the next multiple of 5 above `best`, capped at `goal`
+  - Input validation:
+    - value must be an integer
+    - value must stay within `[min, max]`
   - Submit creates today's session
+
+### Heatmap page
+
+- Main header includes `Heatmap` button next to `RPM Tracker` title.
+- `Heatmap` route renders a GitHub-style pixel heatmap using session-count-per-day.
+- Axes:
+  - X-axis month labels
+  - Y-axis weekday labels
 
 ### Add lick
 
@@ -206,7 +223,7 @@ Shown only when no artist filter is active:
 3. Add-session disable logic is correct for:
    - `best >= goal`
    - today session already exists
-4. Add-session stepper range math is correct (`min` multiple-of-5 strictly above best, bounded by goal).
+4. Add-session range math is correct (`min = 1` or `best + 1`, bounded by goal), with API-side enforcement.
 5. Table sorting/filtering works for all columns.
 6. Artist column stays visible when artist filter is active.
 7. Progress filter cycle works for `All`, `TODO`, `Done`.
@@ -225,6 +242,7 @@ Shown only when no artist filter is active:
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
 16. Docker image builds and app starts on port `3000`.
 17. SQLite file persists across restarts when `/data` is mounted.
+18. Heatmap page renders a contribution-style grid with month/day axes using `/api/heatmap`.
 
 ## Implementation Milestones
 
@@ -242,6 +260,7 @@ Shown only when no artist filter is active:
 12. CSV importer script enhancements.
 13. Dockerfile + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.
+15. Heatmap page (`/heatmap.html`) + `GET /api/heatmap` + axis labels.
 
 ## Reference Docs
 
