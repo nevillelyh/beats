@@ -276,21 +276,37 @@ class RpmApp extends LitElement {
   openAddSession(lick) {
     this.activeLick = lick;
     const best = lick.best_rpm || 0;
-    const min = Math.floor(best / 5) * 5 + 5;
+    const min = lick.best_rpm === null ? 1 : lick.best_rpm + 1;
     const max = lick.goal_rpm;
+    const suggested = Math.floor(best / 5) * 5 + 5;
     this.addMin = min;
     this.addMax = max;
-    this.addValue = min <= max ? min : max;
+    this.addValue = suggested <= max ? suggested : max;
     this.openDialog("addSessionDialog");
   }
 
   updateAddValue(event) {
-    this.addValue = Number(event.target.value || 0);
+    const raw = Number(event.target.value);
+    if (!Number.isFinite(raw)) {
+      this.addValue = this.addMin;
+      return;
+    }
+    this.addValue = Math.trunc(raw);
   }
 
   adjustAddValue(delta) {
     const next = this.addValue + delta;
     this.addValue = Math.max(this.addMin, Math.min(this.addMax, next));
+  }
+
+  addValueValidationError() {
+    if (!Number.isInteger(this.addValue)) {
+      return "RPM must be an integer";
+    }
+    if (this.addValue < this.addMin || this.addValue > this.addMax) {
+      return `RPM must be between ${this.addMin} and ${this.addMax}`;
+    }
+    return "";
   }
 
   updateGoalValue(event) {
@@ -312,6 +328,11 @@ class RpmApp extends LitElement {
 
   async submitAddSession() {
     if (!this.activeLick) {
+      return;
+    }
+    const addError = this.addValueValidationError();
+    if (addError) {
+      this.error = addError;
       return;
     }
     try {
@@ -412,6 +433,7 @@ class RpmApp extends LitElement {
 
   render() {
     const addDisabledByRange = this.addMin > this.addMax;
+    const addValidationError = addDisabledByRange ? "" : this.addValueValidationError();
     const visibleLicks = this.licks.filter((row) => {
       if (this.progressFilter === "all") {
         return true;
@@ -600,6 +622,7 @@ class RpmApp extends LitElement {
         <h3>Add Session</h3>
         <div class="range-grid">
           <div class="muted">Allowed range: ${this.addMin} - ${this.addMax}</div>
+          ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
           <div class="rpm-stepper">
             <button class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue <= this.addMin} @click=${() => this.adjustAddValue(-5)}>
               -
@@ -609,7 +632,7 @@ class RpmApp extends LitElement {
               class="rpm-number-input"
               min=${this.addMin}
               max=${this.addMax}
-              step="5"
+              step="1"
               type="number"
               .value=${String(this.addValue)}
               ?disabled=${addDisabledByRange}
@@ -622,7 +645,7 @@ class RpmApp extends LitElement {
         </div>
         <div class="dialog-actions">
           <button class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
-          <button class="btn btn-primary" ?disabled=${addDisabledByRange} @click=${this.submitAddSession}>Save</button>
+          <button class="btn btn-primary" ?disabled=${addDisabledByRange || Boolean(addValidationError)} @click=${this.submitAddSession}>Save</button>
         </div>
       </dialog>
 
