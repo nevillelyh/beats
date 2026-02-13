@@ -566,7 +566,7 @@ class RpmApp extends LitElement {
                             (row) => html`
                               <tr>
                                 <td>${row.artist_name}</td>
-                                <td>${this.renderLickName(row)}</td>
+                                <td class="lick-cell">${this.renderLickName(row)}</td>
                                 <td>${row.goal_rpm}</td>
                                 <td>
                                   <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>

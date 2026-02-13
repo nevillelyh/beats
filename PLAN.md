@@ -140,6 +140,7 @@ Rules:
 - Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
 - If a lick has a URL, clicking the lick name opens it in a new tab.
+- Long lick names/URLs wrap in desktop mode so table layout remains stable.
 - Goal-hit highlighting:
   - When `Best >= Goal` and `% >= 100`, values are emphasized.
   - Desktop table uses bold green text (no pill/background) to preserve row alignment.

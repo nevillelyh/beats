@@ -78,6 +78,11 @@ body {
   text-decoration: underline;
 }
 
+.table td.lick-cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
