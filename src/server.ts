@@ -7,6 +7,7 @@ import {
   getLickMeta,
   getLicks,
   getSessions,
+  getSessionRpmRange,
   hasSessionForDate,
   initSchema,
   normalizeLocalDate,
@@ -122,8 +123,9 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     try {
       const lickId = Number(sessionListMatch[1]);
       const body = (await req.json()) as { rpm?: number };
-      if (!body.rpm) {
-        return badRequest("rpm is required");
+      const rpm = body.rpm;
+      if (!Number.isInteger(rpm) || rpm <= 0) {
+        return badRequest("rpm must be a positive integer");
       }
 
       const localDate = normalizeLocalDate(req.headers.get("x-local-date"));
@@ -139,8 +141,12 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       if (hasSessionForDate(db, lickId, localDate)) {
         return badRequest("Session already exists for today");
       }
+      const range = getSessionRpmRange(best, meta.goal_rpm);
+      if (rpm < range.min || rpm > range.max) {
+        return badRequest(`rpm must be between ${range.min} and ${range.max}`);
+      }
 
-      const id = addSession(db, lickId, localDate, body.rpm);
+      const id = addSession(db, lickId, localDate, rpm);
       return json({ id }, 201);
     } catch (err) {
       return badRequest((err as Error).message);

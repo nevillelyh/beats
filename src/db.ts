@@ -28,6 +28,11 @@ export type Session = {
   rpm: number;
 };
 
+export type SessionRpmRange = {
+  min: number;
+  max: number;
+};
+
 const SORT_MAP: Record<string, string> = {
   artist: "artist_name",
   lick: "lick_name",
@@ -238,6 +243,17 @@ export function addSession(
     throw new Error("Failed to create session");
   }
   return row.id;
+}
+
+export function getSessionRpmRange(
+  bestRpm: number | null,
+  goalRpm: number,
+): SessionRpmRange {
+  if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
+    throw new Error("goalRpm must be a positive integer");
+  }
+  const min = bestRpm === null ? 1 : bestRpm + 1;
+  return { min, max: goalRpm };
 }
 
 export function getSessions(
