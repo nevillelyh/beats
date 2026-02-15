@@ -76,7 +76,7 @@ class RpmApp extends LitElement {
   applyUrlState(params) {
     const validSort = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
     const validDir = new Set(["asc", "desc"]);
-    const validProgress = new Set(["all", "todo", "done"]);
+    const validProgress = new Set(["all", "new", "progress", "done", "todo"]);
 
     const sortBy = params.get("sort");
     const sortDir = params.get("dir");
@@ -93,7 +93,7 @@ class RpmApp extends LitElement {
       this.filterArtistId = artist;
     }
     if (progress && validProgress.has(progress)) {
-      this.progressFilter = progress;
+      this.progressFilter = progress === "todo" ? "progress" : progress;
     }
 
   }
@@ -228,18 +228,8 @@ class RpmApp extends LitElement {
     await this.reloadLicks();
   }
 
-  cycleProgressFilter() {
-    if (this.progressFilter === "all") {
-      this.progressFilter = "todo";
-      this.syncUrlState();
-      return;
-    }
-    if (this.progressFilter === "todo") {
-      this.progressFilter = "done";
-      this.syncUrlState();
-      return;
-    }
-    this.progressFilter = "all";
+  setProgressFilter(filter) {
+    this.progressFilter = this.progressFilter === filter ? "all" : filter;
     this.syncUrlState();
   }
 
@@ -437,16 +427,30 @@ class RpmApp extends LitElement {
   render() {
     const addDisabledByRange = this.addMin > this.addMax;
     const addValidationError = addDisabledByRange ? "" : this.addValueValidationError();
+    const newCount = this.licks.filter((row) => row.session_count === 0).length;
+    const inProgressCount = this.licks.filter(
+      (row) => row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100,
+    ).length;
+    const doneCount = this.licks.filter((row) => row.pct_of_goal === 100).length;
+    const startedPcts = this.licks
+      .filter((row) => row.session_count > 0 && row.pct_of_goal !== null)
+      .map((row) => row.pct_of_goal);
+    const averagePct =
+      startedPcts.length > 0
+        ? Math.round((startedPcts.reduce((sum, pct) => sum + pct, 0) / startedPcts.length) * 10) / 10
+        : null;
     const visibleLicks = this.licks.filter((row) => {
       if (this.progressFilter === "all") {
         return true;
       }
-      if (this.progressFilter === "todo") {
-        return row.pct_of_goal === null || row.pct_of_goal < 100;
+      if (this.progressFilter === "new") {
+        return row.session_count === 0;
+      }
+      if (this.progressFilter === "progress") {
+        return row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100;
       }
       return row.pct_of_goal === 100;
     });
-    const progressLabel = this.progressFilter === "all" ? "All" : this.progressFilter === "todo" ? "TODO" : "Done";
 
     return html`
       <div class="container">
@@ -473,10 +477,40 @@ class RpmApp extends LitElement {
                     </option>`,
                 )}
               </select>
-              <button class="btn btn-small chip-active" @click=${this.cycleProgressFilter}>
-                ${progressLabel}
-              </button>
               ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
+            </div>
+            <div class="toolbar-row stats-row">
+              <button
+                class="status-chip ${this.progressFilter === "new" ? "status-chip-active" : ""}"
+                @click=${() => this.setProgressFilter("new")}
+                title="New"
+                aria-label="Filter new licks"
+              >
+                <span class="status-icon status-new" aria-hidden="true"></span>
+                <span class="stat-count">${newCount}</span>
+              </button>
+              <button
+                class="status-chip ${this.progressFilter === "progress" ? "status-chip-active" : ""}"
+                @click=${() => this.setProgressFilter("progress")}
+                title="In progress"
+                aria-label="Filter in-progress licks"
+              >
+                <span class="status-icon status-progress" aria-hidden="true"></span>
+                <span class="stat-count">${inProgressCount}</span>
+              </button>
+              <button
+                class="status-chip ${this.progressFilter === "done" ? "status-chip-active" : ""}"
+                @click=${() => this.setProgressFilter("done")}
+                title="Done"
+                aria-label="Filter completed licks"
+              >
+                <span class="status-icon status-done" aria-hidden="true"></span>
+                <span class="stat-count">${doneCount}</span>
+              </button>
+              <span class="avg-pill" title="Average %">
+                <span class="status-icon avg-icon" aria-hidden="true"></span>
+                <span class="stat-count">${averagePct === null ? "-" : `${averagePct}%`}</span>
+              </span>
             </div>
           </div>
           ${this.compact

@@ -64,6 +64,94 @@ body {
   flex-wrap: wrap;
 }
 
+.stats-row {
+  align-items: center;
+  gap: 8px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #b9c5d4;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.status-chip:hover {
+  background: #edf2f7;
+}
+
+.status-chip-active {
+  background: #0f6f9f;
+  border-color: #0d5f87;
+  color: #fff;
+}
+
+.status-chip-active:hover {
+  background: #0d5f87;
+}
+
+.status-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  border-radius: 50%;
+  flex: 0 0 14px;
+}
+
+.status-new {
+  border: 2px solid currentColor;
+  background: transparent;
+}
+
+.status-progress {
+  border: 2px solid currentColor;
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.status-done {
+  position: relative;
+  background: currentColor;
+}
+
+.status-done::after {
+  content: "✓";
+  position: absolute;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -52%);
+}
+
+.stat-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 12px;
+  text-align: center;
+}
+
+.avg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d6e0ea;
+  background: #f3f7fb;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-weight: 600;
+}
+
+.avg-icon {
+  border: 2px solid currentColor;
+  background: conic-gradient(currentColor 0 72deg, transparent 72deg 360deg);
+}
+
 .table-wrap {
   overflow-x: auto;
 }

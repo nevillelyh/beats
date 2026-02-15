@@ -149,15 +149,18 @@ Rules:
   - `artist` (artist filter)
   - `sort` (sort field)
   - `dir` (sort direction)
-  - `progress` (`all|todo|done`)
+  - `progress` (`all|new|progress|done`)
 
 ### Progress filter control
 
-Single cycle button next to artist filter with 3 states:
+Row below artist filter with icon chips and metrics:
 
-- `All` -> show all rows
-- `TODO` -> show rows where `% < 100`
-- `Done` -> show rows where `% == 100`
+- `New` chip: count of licks with `0` sessions.
+- `In progress` chip: count of licks with `> 0` sessions and `% < 100`.
+- `Done` chip: count of licks with `% = 100`.
+- `Average %`: mean `%` across licks with `> 0` sessions.
+- Clicking `New`, `In progress`, or `Done` applies that filter.
+- Clicking the currently active chip again clears back to `all`.
 
 ### Mobile/wrapped row view
 
@@ -230,7 +233,7 @@ Shown only when no artist filter is active:
 4. Add-session range math is correct (`min = 1` or `best + 1`, bounded by goal), with API-side enforcement.
 5. Table sorting/filtering works for all columns.
 6. Artist column stays visible when artist filter is active.
-7. Progress filter cycle works for `All`, `TODO`, `Done`.
+7. Progress chip filtering works for `New`, `In progress`, and `Done`, with click-to-clear back to `all`.
 8. URL state persists and restores artist/sort/dir/progress.
 9. Session modal defaults to date descending and supports sort toggles.
 10. CSV importer:
@@ -257,7 +260,7 @@ Shown only when no artist filter is active:
 5. Session modal and add-session modal.
 6. Add-lick modal.
 7. Mobile wrapped-row layout and chip-based sorting.
-8. Progress filter cycle (`All/TODO/Done`).
+8. Progress filter chips + metrics row (`New/In progress/Done` + `Average %`).
 9. URL-state persistence in main view.
 10. Conditional add flows (`+ Add Artist` / `+ Add Lick`) and dialogs.
 11. Optional lick URL data flow (schema, API, add-lick form, link rendering).
