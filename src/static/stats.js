@@ -84,17 +84,17 @@ function renderMonthAxis(axis, startWeek, weeks) {
   }
 }
 
-async function loadHeatmap() {
-  const summary = document.querySelector("#heatmapSummary");
-  const grid = document.querySelector("#heatmapGrid");
-  const monthAxis = document.querySelector("#heatmapMonthAxis");
-  const weekdayAxis = document.querySelector("#heatmapWeekdayAxis");
+async function loadStats() {
+  const summary = document.querySelector("#statsSummary");
+  const grid = document.querySelector("#statsGrid");
+  const monthAxis = document.querySelector("#statsMonthAxis");
+  const weekdayAxis = document.querySelector("#statsWeekdayAxis");
   if (!summary || !grid || !monthAxis || !weekdayAxis) {
     return;
   }
 
   try {
-    const response = await fetch("/api/heatmap", {
+    const response = await fetch("/api/stats", {
       headers: {
         "X-Local-Date": formatDate(new Date()),
       },
@@ -150,8 +150,8 @@ async function loadHeatmap() {
 
     summary.textContent = `${total} sessions over ${activeDays} active days in the last ${weeks} weeks`;
   } catch (err) {
-    summary.textContent = err instanceof Error ? err.message : "Failed to load heatmap";
+    summary.textContent = err instanceof Error ? err.message : "Failed to load stats";
   }
 }
 
-loadHeatmap();
+loadStats();

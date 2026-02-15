@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RPM Stats</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/stats.css" />
+    <script type="module" src="/stats.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="title-row">
+          <h1 class="title">RPMs</h1>
+          <a class="btn btn-small" href="/">Licks</a>
+        </div>
+      </div>
+
+      <div class="card stats-card">
+        <div class="stats-meta">
+          <div id="statsSummary" class="muted">Loading...</div>
+          <div class="stats-legend">
+            <span class="muted">Less</span>
+            <span class="pixel level-0"></span>
+            <span class="pixel level-1"></span>
+            <span class="pixel level-2"></span>
+            <span class="pixel level-3"></span>
+            <span class="pixel level-4"></span>
+            <span class="muted">More</span>
+          </div>
+        </div>
+        <div class="stats-wrap">
+          <div class="stats-chart" aria-label="Practice session stats">
+            <div class="stats-month-spacer"></div>
+            <div id="statsMonthAxis" class="stats-month-axis" aria-hidden="true"></div>
+            <div id="statsWeekdayAxis" class="stats-weekday-axis" aria-hidden="true"></div>
+            <div id="statsGrid" class="stats-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

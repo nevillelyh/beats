@@ -28,7 +28,7 @@ export type Session = {
   rpm: number;
 };
 
-export type HeatmapDay = {
+export type StatsDay = {
   date: string;
   session_count: number;
 };
@@ -279,7 +279,7 @@ export function getSessions(
     .all(lickId) as Session[];
 }
 
-export function getHeatmap(db: Database): HeatmapDay[] {
+export function getStats(db: Database): StatsDay[] {
   return db
     .query(
       `SELECT
@@ -289,7 +289,7 @@ export function getHeatmap(db: Database): HeatmapDay[] {
        GROUP BY date
        ORDER BY date ASC`,
     )
-    .all() as HeatmapDay[];
+    .all() as StatsDay[];
 }
 
 export function normalizeLocalDate(value: string | null | undefined): string {

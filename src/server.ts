@@ -4,7 +4,7 @@ import {
   createArtist,
   createLick,
   getArtists,
-  getHeatmap,
+  getStats,
   getLickMeta,
   getLicks,
   getSessions,
@@ -85,8 +85,8 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     }
   }
 
-  if (url.pathname === "/api/heatmap" && req.method === "GET") {
-    return json({ data: getHeatmap(db) });
+  if (url.pathname === "/api/stats" && req.method === "GET") {
+    return json({ data: getStats(db) });
   }
 
   if (url.pathname === "/api/licks" && req.method === "POST") {

@@ -15,7 +15,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-8. Add a dedicated heatmap page (GitHub-style contribution grid) reachable from the main header.
+8. Add a dedicated stats page (GitHub-style contribution grid) reachable from the main header.
 
 ## Tech Stack
 
@@ -109,7 +109,7 @@ Provide `scripts/import_csv.py`:
   - Client sends `X-Local-Date: YYYY-MM-DD`
   - Reject if today already exists, `best >= goal`, or `rpm` is outside `[min, goal]`
   - `min` is `1` when no previous session exists; otherwise `best + 1`
-- `GET /api/heatmap`
+- `GET /api/stats`
   - Returns per-day practice density:
     - `date`, `session_count`
 
@@ -199,14 +199,14 @@ Each lick row has:
     - value must stay within `[min, max]`
   - Submit creates today's session
 
-### Heatmap page
+### Stats page
 
-- Main header includes `Heatmap` button next to `RPM Tracker` title.
-- `Heatmap` route renders a GitHub-style pixel heatmap using session-count-per-day.
+- Main header includes `Stats` button next to `RPMs` title.
+- `Stats` route renders a GitHub-style pixel grid using session-count-per-day.
 - Axes:
   - X-axis month labels
   - Y-axis weekday labels
-- On wide desktop screens, the heatmap card should size to chart content instead of stretching across the full container.
+- On wide desktop screens, the stats card should size to chart content instead of stretching across the full container.
 
 ### Add lick
 
@@ -249,7 +249,7 @@ Shown only when no artist filter is active:
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
 16. Docker image builds and app starts on port `3000`.
 17. SQLite file persists across restarts when `/data` is mounted.
-18. Heatmap page renders a contribution-style grid with month/day axes using `/api/heatmap`.
+18. Stats page renders a contribution-style grid with month/day axes using `/api/stats`.
 
 ## Implementation Milestones
 
@@ -267,7 +267,7 @@ Shown only when no artist filter is active:
 12. CSV importer script enhancements.
 13. Dockerfile + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.
-15. Heatmap page (`/heatmap.html`) + `GET /api/heatmap` + axis labels.
+15. Stats page (`/stats.html`) + `GET /api/stats` + axis labels.
 
 ## Reference Docs
 

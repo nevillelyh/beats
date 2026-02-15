@@ -1,4 +1,4 @@
-.heatmap-card {
+.stats-card {
   --cell-size: 12px;
   --cell-gap: 3px;
   --axis-width: 34px;
@@ -6,14 +6,14 @@
   --weeks: 53;
 }
 
-.heatmap-card {
+.stats-card {
   padding: 16px;
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
 }
 
-.heatmap-meta {
+.stats-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -22,12 +22,12 @@
   margin-bottom: 12px;
 }
 
-.heatmap-wrap {
+.stats-wrap {
   overflow-x: auto;
   padding-bottom: 6px;
 }
 
-.heatmap-chart {
+.stats-chart {
   display: grid;
   grid-template-columns: var(--axis-width) max-content;
   grid-template-rows: var(--month-axis-height) max-content;
@@ -36,12 +36,12 @@
   width: max-content;
 }
 
-.heatmap-month-spacer {
+.stats-month-spacer {
   width: var(--axis-width);
   height: var(--month-axis-height);
 }
 
-.heatmap-month-axis {
+.stats-month-axis {
   display: grid;
   grid-template-columns: repeat(var(--weeks), var(--cell-size));
   column-gap: var(--cell-gap);
@@ -52,12 +52,12 @@
   width: max-content;
 }
 
-.heatmap-month-axis span {
+.stats-month-axis span {
   transform: translateY(1px);
   white-space: nowrap;
 }
 
-.heatmap-weekday-axis {
+.stats-weekday-axis {
   display: grid;
   grid-template-rows: repeat(7, var(--cell-size));
   row-gap: var(--cell-gap);
@@ -66,14 +66,14 @@
   color: var(--muted);
 }
 
-.heatmap-weekday-axis span {
+.stats-weekday-axis span {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   padding-right: 4px;
 }
 
-.heatmap-grid {
+.stats-grid {
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(7, var(--cell-size));
@@ -110,7 +110,7 @@
   background: #216e39;
 }
 
-.heatmap-legend {
+.stats-legend {
   display: flex;
   align-items: center;
   gap: 4px;
