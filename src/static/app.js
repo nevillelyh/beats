@@ -278,10 +278,13 @@ class RpmApp extends LitElement {
     const best = lick.best_rpm || 0;
     const min = lick.best_rpm === null ? 1 : lick.best_rpm + 1;
     const max = lick.goal_rpm;
-    const suggested = Math.floor(best / 5) * 5 + 5;
+    const suggested =
+      lick.best_rpm === null
+        ? Math.ceil((lick.goal_rpm / 2) / 10) * 10
+        : Math.floor(best / 5) * 5 + 5;
     this.addMin = min;
     this.addMax = max;
-    this.addValue = suggested <= max ? suggested : max;
+    this.addValue = Math.max(min, Math.min(max, suggested));
     this.openDialog("addSessionDialog");
   }
 

@@ -188,7 +188,9 @@ Each lick row has:
     - `max = goal`
     - If `min > max`, disable action
     - `-` and `+` adjust by increments of `5`
-    - Default RPM value is the next multiple of 5 above `best`, capped at `goal`
+    - Default RPM value:
+      - if no previous session: `goal / 2`, rounded up to the next multiple of `10` (capped to range)
+      - otherwise: next multiple of `5` above `best` (capped to range)
   - Input validation:
     - value must be an integer
     - value must stay within `[min, max]`
