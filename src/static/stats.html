@@ -39,6 +39,44 @@
           </div>
         </div>
       </div>
+
+      <div class="stats-bars-wrap">
+        <div class="card stats-bars-card">
+          <div class="bars-section">
+            <h3 class="bars-title">Sessions</h3>
+            <div class="bars-legend">
+              <span class="legend-item"><span class="legend-swatch bar-seg-first"></span>First</span>
+              <span class="legend-item"><span class="legend-swatch bar-seg-progression"></span>Progression</span>
+              <span class="legend-item"><span class="legend-swatch bar-seg-completion"></span>Completion</span>
+            </div>
+            <div class="bars-plot">
+              <div id="sessionsYAxis" class="bars-y-axis"></div>
+              <div id="sessionsBars" class="bars-chart"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card stats-bars-card">
+          <div class="bars-section">
+            <h3 class="bars-title">Deltas</h3>
+            <div id="rpmLegend" class="bars-legend"></div>
+            <div class="bars-plot">
+              <div id="rpmYAxis" class="bars-y-axis"></div>
+              <div id="rpmBars" class="bars-chart"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card stats-bars-card">
+          <div class="bars-section">
+            <h3 class="bars-title">Progress</h3>
+            <div class="bars-plot">
+              <div id="distributionYAxis" class="bars-y-axis"></div>
+              <div id="distributionBars" class="bars-chart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>

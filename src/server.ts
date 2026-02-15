@@ -3,7 +3,9 @@ import {
   addSession,
   createArtist,
   createLick,
+  getBestPctDistribution,
   getArtists,
+  getStatsBars,
   getStats,
   getLickMeta,
   getLicks,
@@ -87,6 +89,14 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
 
   if (url.pathname === "/api/stats" && req.method === "GET") {
     return json({ data: getStats(db) });
+  }
+
+  if (url.pathname === "/api/stats/bars" && req.method === "GET") {
+    return json({ data: getStatsBars(db) });
+  }
+
+  if (url.pathname === "/api/stats/distribution" && req.method === "GET") {
+    return json({ data: getBestPctDistribution(db) });
   }
 
   if (url.pathname === "/api/licks" && req.method === "POST") {

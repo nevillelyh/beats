@@ -33,6 +33,38 @@ export type StatsDay = {
   session_count: number;
 };
 
+export type StatsSessionBarsDay = {
+  date: string;
+  first_sessions: number;
+  completion_sessions: number;
+  progression_sessions: number;
+};
+
+export type StatsProgressBarsDay = {
+  date: string;
+  progress_values: number[];
+};
+
+export type StatsRpmBarsDay = {
+  date: string;
+  first_sessions: number;
+  delta_bins: Array<{
+    delta_bin: number;
+    session_count: number;
+  }>;
+};
+
+export type StatsBars = {
+  sessions: StatsSessionBarsDay[];
+  progress: StatsProgressBarsDay[];
+  rpms: StatsRpmBarsDay[];
+};
+
+export type StatsBestPctBin = {
+  bucket_pct: number;
+  lick_count: number;
+};
+
 export type SessionRpmRange = {
   min: number;
   max: number;
@@ -290,6 +322,146 @@ export function getStats(db: Database): StatsDay[] {
        ORDER BY date ASC`,
     )
     .all() as StatsDay[];
+}
+
+export function getStatsBars(db: Database): StatsBars {
+  const rows = db
+    .query(
+      `SELECT
+         s.id,
+         s.lick_id,
+         s.date,
+         s.rpm,
+         l.goal_rpm
+       FROM sessions s
+       JOIN licks l ON l.id = s.lick_id
+       ORDER BY s.lick_id ASC, s.date ASC, s.id ASC`,
+    )
+    .all() as Array<{
+    id: number;
+    lick_id: number;
+    date: string;
+    rpm: number;
+    goal_rpm: number;
+  }>;
+
+  const sessionsByDate = new Map<string, StatsSessionBarsDay>();
+  const progressByDate = new Map<string, number[]>();
+  const rpmsByDate = new Map<string, { first_sessions: number; delta_bins: Map<number, number> }>();
+  const lickState = new Map<number, {
+    seen: boolean;
+    prev_pct: number | null;
+    prev_rpm: number | null;
+    reached_goal: boolean;
+  }>();
+
+  for (const row of rows) {
+    const pct = (row.rpm * 100) / row.goal_rpm;
+    let day = sessionsByDate.get(row.date);
+    if (!day) {
+      day = {
+        date: row.date,
+        first_sessions: 0,
+        completion_sessions: 0,
+        progression_sessions: 0,
+      };
+      sessionsByDate.set(row.date, day);
+    }
+
+    const state = lickState.get(row.lick_id) ?? {
+      seen: false,
+      prev_pct: null,
+      prev_rpm: null,
+      reached_goal: false,
+    };
+    let rpmDay = rpmsByDate.get(row.date);
+    if (!rpmDay) {
+      rpmDay = { first_sessions: 0, delta_bins: new Map<number, number>() };
+      rpmsByDate.set(row.date, rpmDay);
+    }
+
+    if (!state.seen) {
+      day.first_sessions += 1;
+      rpmDay.first_sessions += 1;
+    } else if (!state.reached_goal && pct >= 100) {
+      day.completion_sessions += 1;
+    } else {
+      day.progression_sessions += 1;
+    }
+
+    const delta = state.prev_pct === null ? 10 : pct - state.prev_pct;
+    if (state.prev_rpm !== null) {
+      const rpmDelta = Math.abs(row.rpm - state.prev_rpm);
+      const deltaBin = Math.max(5, Math.ceil(Math.max(rpmDelta, 0.1) / 5) * 5);
+      rpmDay.delta_bins.set(deltaBin, (rpmDay.delta_bins.get(deltaBin) ?? 0) + 1);
+    }
+    const roundedDelta = Math.round(delta * 10) / 10;
+    const progressParts = progressByDate.get(row.date) ?? [];
+    progressParts.push(roundedDelta);
+    progressByDate.set(row.date, progressParts);
+
+    state.seen = true;
+    state.prev_pct = pct;
+    state.prev_rpm = row.rpm;
+    if (pct >= 100) {
+      state.reached_goal = true;
+    }
+    lickState.set(row.lick_id, state);
+  }
+
+  const dates = [...sessionsByDate.keys()].sort();
+  return {
+    sessions: dates.map((date) => sessionsByDate.get(date)!),
+    progress: dates.map((date) => ({
+      date,
+      progress_values: progressByDate.get(date) ?? [],
+    })),
+    rpms: dates.map((date) => {
+      const row = rpmsByDate.get(date) ?? { first_sessions: 0, delta_bins: new Map<number, number>() };
+      const delta_bins = [...row.delta_bins.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([delta_bin, session_count]) => ({ delta_bin, session_count }));
+      return {
+        date,
+        first_sessions: row.first_sessions,
+        delta_bins,
+      };
+    }),
+  };
+}
+
+export function getBestPctDistribution(db: Database): StatsBestPctBin[] {
+  const rows = db
+    .query(
+      `SELECT
+         l.id,
+         l.goal_rpm,
+         MAX(s.rpm) AS best_rpm
+       FROM licks l
+       LEFT JOIN sessions s ON s.lick_id = l.id
+       GROUP BY l.id, l.goal_rpm`,
+    )
+    .all() as Array<{ id: number; goal_rpm: number; best_rpm: number | null }>;
+
+  const counts = new Map<number, number>();
+  for (let bucket = 0; bucket <= 100; bucket += 5) {
+    counts.set(bucket, 0);
+  }
+
+  for (const row of rows) {
+    const pct = row.best_rpm === null ? 0 : (row.best_rpm * 100) / row.goal_rpm;
+    const bucket = pct >= 100 ? 100 : Math.floor(Math.max(0, pct) / 5) * 5;
+    counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+  }
+
+  const output: StatsBestPctBin[] = [];
+  for (let bucket = 0; bucket <= 100; bucket += 5) {
+    output.push({
+      bucket_pct: bucket,
+      lick_count: counts.get(bucket) ?? 0,
+    });
+  }
+  return output;
 }
 
 export function normalizeLocalDate(value: string | null | undefined): string {

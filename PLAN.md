@@ -112,6 +112,14 @@ Provide `scripts/import_csv.py`:
 - `GET /api/stats`
   - Returns per-day practice density:
     - `date`, `session_count`
+- `GET /api/stats/bars`
+  - Returns stacked-bar data by day:
+    - `sessions`: `first_sessions`, `progression_sessions`, `completion_sessions`
+    - `rpms`: `first_sessions` + absolute-RPM delta bins (`5, 10, 15, ...`)
+- `GET /api/stats/distribution`
+  - Returns best-% distribution bins:
+    - `bucket_pct` from `0..100` in `5%` steps
+    - `lick_count`
 
 ## UI Specification
 
@@ -207,6 +215,11 @@ Each lick row has:
   - X-axis month labels
   - Y-axis weekday labels
 - On wide desktop screens, the stats card should size to chart content instead of stretching across the full container.
+- Additional charts under the heatmap:
+  - `Sessions`: stacked daily bars (`First`, `Progression`, `Completion`)
+  - `Deltas`: stacked daily bars with `First` at the bottom, then absolute RPM-change bins (`+5`, `+10`, ...)
+    - Legend shows one trailing unit label (`RPM`) instead of repeating units per bin
+  - `Progress`: best-% distribution bars (`0, 5, 10, ... 100`)
 
 ### Add lick
 

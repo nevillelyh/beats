@@ -115,3 +115,150 @@
   align-items: center;
   gap: 4px;
 }
+
+.stats-bars-wrap {
+  --cell-size: 12px;
+  --cell-gap: 3px;
+  --weeks: 53;
+  --axis-width: 34px;
+  --axis-gap: 6px;
+  --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.stats-bars-card {
+  display: grid;
+  gap: 16px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.bars-section {
+  display: grid;
+  gap: 8px;
+}
+
+.bars-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.bars-chart {
+  width: 100%;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+}
+
+.bars-plot {
+  display: grid;
+  grid-template-columns: var(--axis-width) 1fr;
+  width: calc(var(--axis-width) + var(--axis-gap) + var(--heatmap-width));
+  max-width: 100%;
+  align-items: end;
+  gap: var(--axis-gap);
+}
+
+.bars-y-axis {
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  justify-items: end;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 12px;
+}
+
+.bars-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.legend-unit {
+  margin-left: -6px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  display: inline-block;
+}
+
+.bars-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--bars-count), minmax(0, 1fr));
+  gap: 0;
+  align-items: end;
+  width: 100%;
+  min-height: 192px;
+}
+
+.bar-col {
+  display: grid;
+  grid-template-rows: 1fr 12px;
+  gap: 4px;
+  width: 100%;
+  align-items: end;
+  justify-items: stretch;
+}
+
+.bar-stack {
+  height: 180px;
+  width: 100%;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.bar-seg-first {
+  background: #bbf7d0;
+}
+
+.bar-seg-completion {
+  background: #15803d;
+}
+
+.bar-seg-progression {
+  background: #4ade80;
+}
+
+.bar-seg-distribution {
+  background: #34d399;
+}
+
+.bar-seg-rpm-first {
+  background: #fde68a;
+}
+
+.bar-seg-rpm-delta {
+  background: #60a5fa;
+}
+
+.bar-day {
+  height: 12px;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: visible;
+}

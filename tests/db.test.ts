@@ -3,6 +3,8 @@ import { Database } from "bun:sqlite";
 import {
   addSession,
   createLick,
+  getBestPctDistribution,
+  getStatsBars,
   getStats,
   getLicks,
   getSessionRpmRange,
@@ -91,5 +93,58 @@ describe("db behavior", () => {
       { date: "2026-02-10", session_count: 2 },
       { date: "2026-02-11", session_count: 1 },
     ]);
+  });
+
+  test("stats bars classify sessions and compute progress deltas by day", () => {
+    const lickA = createLick(db, "Pat", "Line A", 100);
+    const lickB = createLick(db, "Pat", "Line B", 200);
+
+    addSession(db, lickA, "2026-02-10", 40);   // first, +10
+    addSession(db, lickA, "2026-02-11", 70);   // progression, +30
+    addSession(db, lickA, "2026-02-12", 105);  // completion, +35
+    addSession(db, lickA, "2026-02-13", 100);  // progression, -5
+
+    addSession(db, lickB, "2026-02-11", 120);  // first, +10
+    addSession(db, lickB, "2026-02-12", 150);  // progression, +15
+
+    expect(getStatsBars(db)).toEqual({
+      sessions: [
+        { date: "2026-02-10", first_sessions: 1, completion_sessions: 0, progression_sessions: 0 },
+        { date: "2026-02-11", first_sessions: 1, completion_sessions: 0, progression_sessions: 1 },
+        { date: "2026-02-12", first_sessions: 0, completion_sessions: 1, progression_sessions: 1 },
+        { date: "2026-02-13", first_sessions: 0, completion_sessions: 0, progression_sessions: 1 },
+      ],
+      progress: [
+        { date: "2026-02-10", progress_values: [10] },
+        { date: "2026-02-11", progress_values: [30, 10] },
+        { date: "2026-02-12", progress_values: [35, 15] },
+        { date: "2026-02-13", progress_values: [-5] },
+      ],
+      rpms: [
+        { date: "2026-02-10", first_sessions: 1, delta_bins: [] },
+        { date: "2026-02-11", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }] },
+        { date: "2026-02-12", first_sessions: 0, delta_bins: [{ delta_bin: 30, session_count: 1 }, { delta_bin: 35, session_count: 1 }] },
+        { date: "2026-02-13", first_sessions: 0, delta_bins: [{ delta_bin: 5, session_count: 1 }] },
+      ],
+    });
+  });
+
+  test("best % distribution returns 0..100 bins in steps of 5", () => {
+    const a = createLick(db, "Pat", "A", 100); // no sessions -> 0
+    const b = createLick(db, "Pat", "B", 100); // 23 -> 20
+    const c = createLick(db, "Pat", "C", 100); // 68 -> 65
+    const d = createLick(db, "Pat", "D", 100); // 100 -> 100
+
+    addSession(db, b, "2026-02-10", 23);
+    addSession(db, c, "2026-02-10", 68);
+    addSession(db, d, "2026-02-10", 100);
+
+    const expected = [];
+    for (let bucket = 0; bucket <= 100; bucket += 5) {
+      const lick_count = bucket === 0 || bucket === 20 || bucket === 65 || bucket === 100 ? 1 : 0;
+      expected.push({ bucket_pct: bucket, lick_count });
+    }
+    expect(getBestPctDistribution(db)).toEqual(expected);
+    expect(a).toBeGreaterThan(0);
   });
 });
