@@ -269,7 +269,10 @@ function renderRpmBars(target, yAxis, legend, rows) {
   const maxDeltaBin = allBins.length ? allBins[allBins.length - 1] : 5;
   const maxTotal = Math.max(
     1,
-    ...rows.map((row) => row.first_sessions + row.delta_bins.reduce((sum, part) => sum + part.session_count, 0)),
+    ...rows.map((row) => (
+      (row.first_sessions * 5)
+      + row.delta_bins.reduce((sum, part) => sum + (part.session_count * part.delta_bin), 0)
+    )),
   );
   const scale = BARS_HEIGHT / maxTotal;
   renderYAxis(yAxis, maxTotal, { targetTicks: 4, minStep: 1 });
@@ -307,13 +310,16 @@ function renderRpmBars(target, yAxis, legend, rows) {
     const stack = document.createElement("div");
     stack.className = "bar-stack";
     stack.style.height = `${BARS_HEIGHT}px`;
-    const deltaText = row.delta_bins.map((part) => `+${part.delta_bin} RPM:${part.session_count}`).join(", ");
-    stack.title = `${row.date}: first ${row.first_sessions}${deltaText ? `, ${deltaText}` : ""}`;
+    const firstTotal = row.first_sessions * 5;
+    const deltaText = row.delta_bins
+      .map((part) => `+${part.delta_bin} x${part.session_count} = ${part.delta_bin * part.session_count}`)
+      .join(", ");
+    stack.title = `${row.date}: first +5 x${row.first_sessions} = ${firstTotal}${deltaText ? `, ${deltaText}` : ""}`;
 
     if (row.first_sessions > 0) {
       const firstSeg = document.createElement("div");
       firstSeg.className = "bar-seg-rpm-first";
-      firstSeg.style.height = `${Math.round(row.first_sessions * scale)}px`;
+      firstSeg.style.height = `${Math.round(firstTotal * scale)}px`;
       stack.appendChild(firstSeg);
     }
 
@@ -323,7 +329,7 @@ function renderRpmBars(target, yAxis, legend, rows) {
       }
       const seg = document.createElement("div");
       seg.className = "bar-seg-rpm-delta";
-      seg.style.height = `${Math.round(part.session_count * scale)}px`;
+      seg.style.height = `${Math.round(part.session_count * part.delta_bin * scale)}px`;
       seg.style.backgroundColor = colorForDeltaBin(part.delta_bin, maxDeltaBin);
       stack.appendChild(seg);
     }

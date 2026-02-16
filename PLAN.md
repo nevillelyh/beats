@@ -116,6 +116,9 @@ Provide `scripts/import_csv.py`:
   - Returns stacked-bar data by day:
     - `sessions`: `first_sessions`, `progression_sessions`, `completion_sessions`
     - `rpms`: `first_sessions` + absolute-RPM delta bins (`5, 10, 15, ...`)
+      - Deltas chart uses weighted stack heights:
+        - `first` contributes `+5` per first session
+        - each bin contributes `delta_bin * session_count`
 - `GET /api/stats/distribution`
   - Returns best-% distribution bins:
     - `bucket_pct` from `0..100` in `5%` steps
@@ -219,6 +222,9 @@ Each lick row has:
   - `Sessions`: stacked daily bars (`First`, `Progression`, `Completion`)
   - `Deltas`: stacked daily bars with `First` at the bottom, then absolute RPM-change bins (`+5`, `+10`, ...)
     - Legend shows one trailing unit label (`RPM`) instead of repeating units per bin
+    - Stack segment heights are weighted by total RPM change (not raw count):
+      - `First` = `first_sessions * 5`
+      - each delta bin = `delta_bin * session_count`
   - `Progress`: best-% distribution bars (`0, 5, 10, ... 100`)
 
 ### Add lick
