@@ -220,12 +220,17 @@ Each lick row has:
 - On wide desktop screens, the stats card should size to chart content instead of stretching across the full container.
 - Additional charts under the heatmap:
   - `Sessions`: stacked daily bars (`First`, `Progression`, `Completion`)
+    - On mobile, display window is last `30` days.
   - `Deltas`: stacked daily bars with `First` at the bottom, then absolute RPM-change bins (`+5`, `+10`, ...)
     - Legend shows one trailing unit label (`RPM`) instead of repeating units per bin
     - Stack segment heights are weighted by total RPM change (not raw count):
       - `First` = `first_sessions * 5`
       - each delta bin = `delta_bin * session_count`
-  - `Progress`: best-% distribution bars (`0, 5, 10, ... 100`)
+    - On mobile, display window is last `30` days.
+  - `Progress`: best-% distribution bars (`0, 10, 20, ... 100`)
+  - Heatmap mobile behavior:
+    - last `22` weeks
+    - Y-axis labels use `M / W / F` (desktop remains `Mon / Wed / Fri`)
 
 ### Add lick
 

@@ -129,10 +129,10 @@ describe("db behavior", () => {
     });
   });
 
-  test("best % distribution returns 0..100 bins in steps of 5", () => {
+  test("best % distribution returns 0..100 bins in steps of 10", () => {
     const a = createLick(db, "Pat", "A", 100); // no sessions -> 0
     const b = createLick(db, "Pat", "B", 100); // 23 -> 20
-    const c = createLick(db, "Pat", "C", 100); // 68 -> 65
+    const c = createLick(db, "Pat", "C", 100); // 68 -> 60
     const d = createLick(db, "Pat", "D", 100); // 100 -> 100
 
     addSession(db, b, "2026-02-10", 23);
@@ -140,8 +140,8 @@ describe("db behavior", () => {
     addSession(db, d, "2026-02-10", 100);
 
     const expected = [];
-    for (let bucket = 0; bucket <= 100; bucket += 5) {
-      const lick_count = bucket === 0 || bucket === 20 || bucket === 65 || bucket === 100 ? 1 : 0;
+    for (let bucket = 0; bucket <= 100; bucket += 10) {
+      const lick_count = bucket === 0 || bucket === 20 || bucket === 60 || bucket === 100 ? 1 : 0;
       expected.push({ bucket_pct: bucket, lick_count });
     }
     expect(getBestPctDistribution(db)).toEqual(expected);

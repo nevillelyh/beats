@@ -262,3 +262,21 @@
   font-variant-numeric: tabular-nums;
   overflow: visible;
 }
+
+@media (max-width: 480px) {
+  .stats-card,
+  .stats-bars-wrap {
+    --weeks: 22;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-card,
+  .stats-bars-card {
+    width: 100%;
+  }
+
+  .bars-plot {
+    width: 100%;
+  }
+}

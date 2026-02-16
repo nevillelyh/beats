@@ -444,18 +444,18 @@ export function getBestPctDistribution(db: Database): StatsBestPctBin[] {
     .all() as Array<{ id: number; goal_rpm: number; best_rpm: number | null }>;
 
   const counts = new Map<number, number>();
-  for (let bucket = 0; bucket <= 100; bucket += 5) {
+  for (let bucket = 0; bucket <= 100; bucket += 10) {
     counts.set(bucket, 0);
   }
 
   for (const row of rows) {
     const pct = row.best_rpm === null ? 0 : (row.best_rpm * 100) / row.goal_rpm;
-    const bucket = pct >= 100 ? 100 : Math.floor(Math.max(0, pct) / 5) * 5;
+    const bucket = pct >= 100 ? 100 : Math.floor(Math.max(0, pct) / 10) * 10;
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
 
   const output: StatsBestPctBin[] = [];
-  for (let bucket = 0; bucket <= 100; bucket += 5) {
+  for (let bucket = 0; bucket <= 100; bucket += 10) {
     output.push({
       bucket_pct: bucket,
       lick_count: counts.get(bucket) ?? 0,

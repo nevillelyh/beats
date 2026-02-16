@@ -1,6 +1,20 @@
-const WEEKS = 53;
+const DESKTOP_WEEKS = 53;
+const MOBILE_WEEKS = 22;
 const BARS_HEIGHT = 180;
-const BAR_DAYS = 50;
+const DESKTOP_BAR_DAYS = 50;
+const MOBILE_BAR_DAYS = 30;
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 480px)").matches;
+}
+
+function getHeatmapWeeks() {
+  return isMobileViewport() ? MOBILE_WEEKS : DESKTOP_WEEKS;
+}
+
+function getBarDays() {
+  return isMobileViewport() ? MOBILE_BAR_DAYS : DESKTOP_BAR_DAYS;
+}
 
 function formatDate(date) {
   const y = date.getFullYear();
@@ -38,7 +52,9 @@ function toLevel(count, maxCount) {
 
 function renderWeekdayAxis(axis) {
   axis.textContent = "";
-  const labels = ["", "Mon", "", "Wed", "", "Fri", ""];
+  const labels = isMobileViewport()
+    ? ["", "M", "", "W", "", "F", ""]
+    : ["", "Mon", "", "Wed", "", "Fri", ""];
   for (const label of labels) {
     const cell = document.createElement("span");
     cell.textContent = label;
@@ -399,7 +415,7 @@ async function loadStats() {
     const rows = summaryPayload.data || [];
     const countByDate = new Map(rows.map((row) => [row.date, row.session_count]));
     const maxCount = rows.reduce((max, row) => Math.max(max, row.session_count), 0);
-    const weeks = WEEKS;
+    const weeks = getHeatmapWeeks();
 
     const today = new Date();
     today.setHours(12, 0, 0, 0);
@@ -444,7 +460,7 @@ async function loadStats() {
 
     const sessionByDate = new Map((barsPayload.data?.sessions || []).map((row) => [row.date, row]));
     const rpmByDate = new Map((barsPayload.data?.rpms || []).map((row) => [row.date, row]));
-    const windowDates = buildDateWindow(BAR_DAYS);
+    const windowDates = buildDateWindow(getBarDays());
 
     const sessionRows = windowDates.map((date) => {
       const row = sessionByDate.get(date);
