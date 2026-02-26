@@ -196,6 +196,10 @@ Each lick row has:
 - `+` (add session)
   - Disabled when `best >= goal` or today session exists
   - Opens modal with:
+    - Context lines:
+      - `Lick: <name>`
+      - `Best: <rpm>` (`None` when no prior session exists)
+      - `Goal: <rpm>`
     - Stepper controls: `- [RPM number] +`
   - Range:
     - `min = 1` if no previous session exists, else `best + 1`

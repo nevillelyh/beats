@@ -708,7 +708,12 @@ class RpmApp extends LitElement {
         <form @submit=${this.onSubmitAddSession}>
           <h3>Add Session</h3>
           <div class="range-grid">
-            <div class="muted">Allowed range: ${this.addMin} - ${this.addMax}</div>
+            <div class="muted">
+              Lick:
+              ${this.activeLick?.lick_name || "-"}
+            </div>
+            <div class="muted">Best: ${this.activeLick?.best_rpm === null ? "None" : (this.activeLick?.best_rpm ?? "-")}</div>
+            <div class="muted">Goal: ${this.activeLick?.goal_rpm ?? "-"}</div>
             ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
             <div class="rpm-stepper">
               <button type="button" class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue <= this.addMin} @click=${() => this.adjustAddValue(-5)}>
