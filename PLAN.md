@@ -208,6 +208,12 @@ Each lick row has:
   - Input validation:
     - value must be an integer
     - value must stay within `[min, max]`
+  - Keyboard UX:
+    - `Enter` submits the dialog
+    - `Esc` closes the dialog
+    - RPM input supports stepper keys:
+      - `ArrowUp` / `+` increase by `5`
+      - `ArrowDown` / `-` decrease by `5`
   - Submit creates today's session
 
 ### Stats page
@@ -240,12 +246,19 @@ Shown only when artist filter is active. Modal uses currently selected artist an
 - Optional URL input
 - Goal RPM stepper: `- [RPM number] +` (increment 5, minimum 1)
 - Default Goal RPM is `100` when opening the dialog
+- Keyboard UX:
+  - `Enter` submits the dialog
+  - `Esc` closes the dialog
+  - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
 
 ### Add artist
 
 Shown only when no artist filter is active:
 
 - Artist name input
+- Keyboard UX:
+  - `Enter` submits the dialog
+  - `Esc` closes the dialog
 
 ## Testing and Acceptance Criteria
 

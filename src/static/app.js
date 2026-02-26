@@ -340,6 +340,11 @@ class RpmApp extends LitElement {
     }
   }
 
+  onSubmitAddSession(event) {
+    event.preventDefault();
+    this.submitAddSession();
+  }
+
   async submitAddLick() {
     const activeArtist = this.artists.find((artist) => String(artist.id) === this.filterArtistId);
     const artistName = activeArtist?.name || "";
@@ -364,6 +369,11 @@ class RpmApp extends LitElement {
     } catch (err) {
       this.error = err.message;
     }
+  }
+
+  onSubmitAddLick(event) {
+    event.preventDefault();
+    this.submitAddLick();
   }
 
   openAddLickDialog() {
@@ -394,6 +404,38 @@ class RpmApp extends LitElement {
       await this.loadAll();
     } catch (err) {
       this.error = err.message;
+    }
+  }
+
+  onSubmitAddArtist(event) {
+    event.preventDefault();
+    this.submitAddArtist();
+  }
+
+  onAddSessionInputKeydown(event) {
+    if (this.addMin > this.addMax) {
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key === "+" || event.key === "=" || event.key === "NumpadAdd") {
+      event.preventDefault();
+      this.adjustAddValue(5);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "-" || event.key === "NumpadSubtract") {
+      event.preventDefault();
+      this.adjustAddValue(-5);
+    }
+  }
+
+  onGoalInputKeydown(event) {
+    if (event.key === "ArrowUp" || event.key === "+" || event.key === "=" || event.key === "NumpadAdd") {
+      event.preventDefault();
+      this.adjustGoalValue(5);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "-" || event.key === "NumpadSubtract") {
+      event.preventDefault();
+      this.adjustGoalValue(-5);
     }
   }
 
@@ -658,78 +700,86 @@ class RpmApp extends LitElement {
         </div>
       </dialog>
 
-      <dialog id="addSessionDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
-        <h3>Add Session</h3>
-        <div class="range-grid">
-          <div class="muted">Allowed range: ${this.addMin} - ${this.addMax}</div>
-          ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
-          <div class="rpm-stepper">
-            <button class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue <= this.addMin} @click=${() => this.adjustAddValue(-5)}>
-              -
-            </button>
-            <input
-              id="addRpmInput"
-              class="rpm-number-input"
-              min=${this.addMin}
-              max=${this.addMax}
-              step="1"
-              type="number"
-              .value=${String(this.addValue)}
-              ?disabled=${addDisabledByRange}
-              @input=${this.updateAddValue}
-            />
-            <button class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue >= this.addMax} @click=${() => this.adjustAddValue(5)}>
-              +
-            </button>
+      <dialog id="addSessionDialog" class="modal">
+        <form @submit=${this.onSubmitAddSession}>
+          <h3>Add Session</h3>
+          <div class="range-grid">
+            <div class="muted">Allowed range: ${this.addMin} - ${this.addMax}</div>
+            ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
+            <div class="rpm-stepper">
+              <button type="button" class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue <= this.addMin} @click=${() => this.adjustAddValue(-5)}>
+                -
+              </button>
+              <input
+                id="addRpmInput"
+                class="rpm-number-input"
+                min=${this.addMin}
+                max=${this.addMax}
+                step="1"
+                type="number"
+                .value=${String(this.addValue)}
+                ?disabled=${addDisabledByRange}
+                @input=${this.updateAddValue}
+                @keydown=${this.onAddSessionInputKeydown}
+              />
+              <button type="button" class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue >= this.addMax} @click=${() => this.adjustAddValue(5)}>
+                +
+              </button>
+            </div>
           </div>
-        </div>
-        <div class="dialog-actions">
-          <button class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
-          <button class="btn btn-primary" ?disabled=${addDisabledByRange || Boolean(addValidationError)} @click=${this.submitAddSession}>Save</button>
-        </div>
+          <div class="dialog-actions">
+            <button type="button" class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
+            <button type="submit" class="btn btn-primary" ?disabled=${addDisabledByRange || Boolean(addValidationError)}>Save</button>
+          </div>
+        </form>
       </dialog>
 
-      <dialog id="addLickDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
-        <h3>Add Lick</h3>
-        <div class="range-grid">
-          <div class="muted">
-            Artist:
-            ${this.artists.find((artist) => String(artist.id) === this.filterArtistId)?.name || "-"}
+      <dialog id="addLickDialog" class="modal">
+        <form @submit=${this.onSubmitAddLick}>
+          <h3>Add Lick</h3>
+          <div class="range-grid">
+            <div class="muted">
+              Artist:
+              ${this.artists.find((artist) => String(artist.id) === this.filterArtistId)?.name || "-"}
+            </div>
+            <label for="lickName">Lick</label>
+            <input id="lickName" />
+            <label for="lickUrl">URL (optional)</label>
+            <input id="lickUrl" type="url" placeholder="https://..." />
+            <label for="goalRpm">Goal RPM</label>
+            <div class="rpm-stepper">
+              <button type="button" class="btn btn-step" @click=${() => this.adjustGoalValue(-5)}>-</button>
+              <input
+                id="goalRpm"
+                class="rpm-number-input"
+                type="number"
+                min="0"
+                step="5"
+                @input=${this.updateGoalValue}
+                @keydown=${this.onGoalInputKeydown}
+              />
+              <button type="button" class="btn btn-step" @click=${() => this.adjustGoalValue(5)}>+</button>
+            </div>
           </div>
-          <label for="lickName">Lick</label>
-          <input id="lickName" />
-          <label for="lickUrl">URL (optional)</label>
-          <input id="lickUrl" type="url" placeholder="https://..." />
-          <label for="goalRpm">Goal RPM</label>
-          <div class="rpm-stepper">
-            <button class="btn btn-step" @click=${() => this.adjustGoalValue(-5)}>-</button>
-            <input
-              id="goalRpm"
-              class="rpm-number-input"
-              type="number"
-              min="1"
-              step="5"
-              @input=${this.updateGoalValue}
-            />
-            <button class="btn btn-step" @click=${() => this.adjustGoalValue(5)}>+</button>
+          <div class="dialog-actions">
+            <button type="button" class="btn" @click=${() => this.closeDialog("addLickDialog")}>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
           </div>
-        </div>
-        <div class="dialog-actions">
-          <button class="btn" @click=${() => this.closeDialog("addLickDialog")}>Cancel</button>
-          <button class="btn btn-primary" @click=${this.submitAddLick}>Save</button>
-        </div>
+        </form>
       </dialog>
 
-      <dialog id="addArtistDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
-        <h3>Add Artist</h3>
-        <div class="range-grid">
-          <label for="newArtistName">Artist</label>
-          <input id="newArtistName" />
-        </div>
-        <div class="dialog-actions">
-          <button class="btn" @click=${() => this.closeDialog("addArtistDialog")}>Cancel</button>
-          <button class="btn btn-primary" @click=${this.submitAddArtist}>Save</button>
-        </div>
+      <dialog id="addArtistDialog" class="modal">
+        <form @submit=${this.onSubmitAddArtist}>
+          <h3>Add Artist</h3>
+          <div class="range-grid">
+            <label for="newArtistName">Artist</label>
+            <input id="newArtistName" />
+          </div>
+          <div class="dialog-actions">
+            <button type="button" class="btn" @click=${() => this.closeDialog("addArtistDialog")}>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
       </dialog>
     `;
   }
