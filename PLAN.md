@@ -98,11 +98,18 @@ Provide `scripts/import_csv.py`:
 - `GET /api/artists`
 - `POST /api/artists`
   - Body: `{ artistName }`
+- `PATCH /api/artists/:artistId`
+  - Body: `{ artistName }`
+  - Renames artist with the same unique-name constraint as create.
 - `GET /api/licks?artist_id=&sort_by=&sort_dir=`
   - Returns lick rows with aggregates:
     - `lick_url`, `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
 - `POST /api/licks`
   - Body: `{ artistName, lickName, goalRpm, url? }`
+- `PATCH /api/licks/:lickId`
+  - Body: `{ lickName, goalRpm, url? }`
+  - Enforces same per-artist unique lick-name constraint.
+  - Enforces `goalRpm >= best_rpm` when previous sessions exist.
 - `GET /api/licks/:lickId/sessions?sort_by=date|rpm&sort_dir=asc|desc`
 - `POST /api/licks/:lickId/sessions`
   - Body: `{ rpm }`
@@ -219,6 +226,16 @@ Each lick row has:
       - `ArrowUp` / `+` increase by `5`
       - `ArrowDown` / `-` decrease by `5`
   - Submit creates today's session
+- `Edit` icon in row actions (before `...`)
+  - Opens `Edit Lick` dialog for selected lick:
+    - fields: `Lick`, `URL`, `Goal RPM`
+  - Keyboard UX:
+    - `Enter` submits the dialog
+    - `Esc` closes the dialog
+    - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
+  - Validation:
+    - same per-artist unique lick-name constraint
+    - minimum goal RPM is prior best session RPM when it exists
 
 ### Stats page
 
@@ -265,6 +282,16 @@ Shown only when no artist filter is active:
   - `Enter` submits the dialog
   - `Esc` closes the dialog
 
+### Edit artist
+
+Shown only when an artist filter is active (icon button next to artist dropdown):
+
+- Edit artist name
+- Keyboard UX:
+  - `Enter` submits the dialog
+  - `Esc` closes the dialog
+- Uses same unique-name constraint as artist creation
+
 ## Testing and Acceptance Criteria
 
 1. DB constraints enforce uniqueness and positive RPM/goal.
@@ -292,6 +319,8 @@ Shown only when no artist filter is active:
 16. Docker image builds and app starts on port `3000`.
 17. SQLite file persists across restarts when `/data` is mounted.
 18. Stats page renders a contribution-style grid with month/day axes using `/api/stats`.
+19. Artist edit flow enforces unique artist names.
+20. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 
 ## Implementation Milestones
 

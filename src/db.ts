@@ -126,6 +126,25 @@ export function createArtist(db: Database, artistName: string): number {
   return row.id;
 }
 
+export function renameArtist(db: Database, artistId: number, artistName: string): void {
+  if (!Number.isInteger(artistId) || artistId <= 0) {
+    throw new Error("artistId must be a positive integer");
+  }
+  const cleanArtist = artistName.trim();
+  if (!cleanArtist) {
+    throw new Error("artistName is required");
+  }
+
+  const existing = db
+    .query("SELECT id FROM artists WHERE id = ?")
+    .get(artistId) as { id: number } | null;
+  if (!existing) {
+    throw new Error("Artist not found");
+  }
+
+  db.query("UPDATE artists SET name = ? WHERE id = ?").run(cleanArtist, artistId);
+}
+
 export function createLick(
   db: Database,
   artistName: string,
@@ -173,6 +192,53 @@ export function createLick(
     throw new Error("Failed to create lick");
   }
   return created.id;
+}
+
+export function updateLick(
+  db: Database,
+  lickId: number,
+  lickName: string,
+  goalRpm: number,
+  lickUrl?: string,
+): void {
+  if (!Number.isInteger(lickId) || lickId <= 0) {
+    throw new Error("lickId must be a positive integer");
+  }
+  const cleanLick = lickName.trim();
+  if (!cleanLick) {
+    throw new Error("lickName is required");
+  }
+  if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
+    throw new Error("goalRpm must be a positive integer");
+  }
+
+  const meta = db
+    .query(
+      `SELECT
+         l.id,
+         MAX(s.rpm) AS best_rpm
+       FROM licks l
+       LEFT JOIN sessions s ON s.lick_id = l.id
+       WHERE l.id = ?
+       GROUP BY l.id`,
+    )
+    .get(lickId) as { id: number; best_rpm: number | null } | null;
+  if (!meta) {
+    throw new Error("Lick not found");
+  }
+
+  const minGoal = meta.best_rpm === null ? 1 : meta.best_rpm;
+  if (goalRpm < minGoal) {
+    throw new Error(`goalRpm must be at least ${minGoal}`);
+  }
+
+  const cleanUrl = lickUrl?.trim() ? lickUrl.trim() : null;
+  db.query("UPDATE licks SET name = ?, url = ?, goal_rpm = ? WHERE id = ?").run(
+    cleanLick,
+    cleanUrl,
+    goalRpm,
+    lickId,
+  );
 }
 
 export function getLicks(

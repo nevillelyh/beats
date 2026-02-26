@@ -2,14 +2,18 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import {
   addSession,
+  createArtist,
   createLick,
   getBestPctDistribution,
+  getArtists,
   getStatsBars,
   getStats,
   getLicks,
   getSessionRpmRange,
   hasSessionForDate,
   openDb,
+  renameArtist,
+  updateLick,
 } from "../src/db";
 
 let db: Database;
@@ -41,6 +45,40 @@ beforeEach(() => {
 });
 
 describe("db behavior", () => {
+  test("rename artist updates artist name", () => {
+    const artistId = createArtist(db, "Pat");
+    renameArtist(db, artistId, "Pat Metheny");
+    expect(getArtists(db)).toEqual([{ id: artistId, name: "Pat Metheny" }]);
+  });
+
+  test("rename artist preserves unique name constraint", () => {
+    const a = createArtist(db, "Pat");
+    createArtist(db, "Kurt");
+    expect(() => renameArtist(db, a, "Kurt")).toThrow();
+  });
+
+  test("update lick edits name, url, and goal", () => {
+    const lickId = createLick(db, "Pat", "Line A", 120, "https://old.example");
+    updateLick(db, lickId, "Line A v2", 150, "https://new.example");
+
+    const rows = getLicks(db, null, "artist", "asc", "2026-02-11");
+    expect(rows[0].lick_name).toBe("Line A v2");
+    expect(rows[0].lick_url).toBe("https://new.example");
+    expect(rows[0].goal_rpm).toBe(150);
+  });
+
+  test("update lick enforces unique artist+lick name", () => {
+    const a = createLick(db, "Pat", "Line A", 120);
+    createLick(db, "Pat", "Line B", 120);
+    expect(() => updateLick(db, a, "Line B", 120)).toThrow();
+  });
+
+  test("update lick requires goal to be at least previous best", () => {
+    const lickId = createLick(db, "Pat", "Line A", 200);
+    addSession(db, lickId, "2026-02-10", 140);
+    expect(() => updateLick(db, lickId, "Line A", 139)).toThrow("goalRpm must be at least 140");
+  });
+
   test("lick aggregates and can_add_today", () => {
     const lickId = createLick(db, "Pat", "Outside phrase", 200);
     addSession(db, lickId, "2026-02-09", 120);

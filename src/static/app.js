@@ -10,6 +10,7 @@ class RpmApp extends LitElement {
     loading: { state: true },
     error: { state: true },
     activeLick: { state: true },
+    editLick: { state: true },
     sessions: { state: true },
     sessionSortBy: { state: true },
     sessionSortDir: { state: true },
@@ -35,6 +36,7 @@ class RpmApp extends LitElement {
     this.loading = false;
     this.error = "";
     this.activeLick = null;
+    this.editLick = null;
     this.sessions = [];
     this.sessionSortBy = "date";
     this.sessionSortDir = "desc";
@@ -376,6 +378,79 @@ class RpmApp extends LitElement {
     this.submitAddLick();
   }
 
+  openEditLickDialog(lick) {
+    this.editLick = lick;
+    const nameInput = this.el("editLickName");
+    const urlInput = this.el("editLickUrl");
+    const goalInput = this.el("editGoalRpm");
+    if (nameInput) {
+      nameInput.value = lick.lick_name || "";
+    }
+    if (urlInput) {
+      urlInput.value = lick.lick_url || "";
+    }
+    if (goalInput) {
+      goalInput.value = String(lick.goal_rpm || "");
+    }
+    this.openDialog("editLickDialog");
+  }
+
+  updateEditGoalValue(event) {
+    const raw = Number(event.target.value || 0);
+    const minGoal = this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1);
+    const clamped = Math.max(minGoal, raw);
+    event.target.value = String(clamped);
+  }
+
+  adjustEditGoalValue(delta) {
+    const input = this.el("editGoalRpm");
+    if (!input) {
+      return;
+    }
+    const minGoal = this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1);
+    const current = Number(input.value || 0);
+    const base = Number.isFinite(current) && current > 0 ? current : minGoal;
+    const next = Math.max(minGoal, base + delta);
+    input.value = String(next);
+  }
+
+  onEditGoalInputKeydown(event) {
+    if (event.key === "ArrowUp" || event.key === "+" || event.key === "=" || event.key === "NumpadAdd") {
+      event.preventDefault();
+      this.adjustEditGoalValue(5);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "-" || event.key === "NumpadSubtract") {
+      event.preventDefault();
+      this.adjustEditGoalValue(-5);
+    }
+  }
+
+  async submitEditLick() {
+    if (!this.editLick) {
+      return;
+    }
+    const lickName = this.el("editLickName").value.trim();
+    const url = this.el("editLickUrl").value.trim();
+    const goalRpm = Number(this.el("editGoalRpm").value);
+    try {
+      await this.api(`/api/licks/${this.editLick.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ lickName, goalRpm, url }),
+      });
+      this.closeDialog("editLickDialog");
+      this.editLick = null;
+      await this.reloadLicks();
+    } catch (err) {
+      this.error = err.message;
+    }
+  }
+
+  onSubmitEditLick(event) {
+    event.preventDefault();
+    this.submitEditLick();
+  }
+
   openAddLickDialog() {
     if (!this.filterArtistId) {
       this.error = "Select an artist first";
@@ -390,6 +465,19 @@ class RpmApp extends LitElement {
 
   openAddArtistDialog() {
     this.openDialog("addArtistDialog");
+  }
+
+  openEditArtistDialog() {
+    if (!this.filterArtistId) {
+      this.error = "Select an artist first";
+      return;
+    }
+    const activeArtist = this.artists.find((artist) => String(artist.id) === this.filterArtistId);
+    const input = this.el("editArtistName");
+    if (input) {
+      input.value = activeArtist?.name || "";
+    }
+    this.openDialog("editArtistDialog");
   }
 
   async submitAddArtist() {
@@ -414,6 +502,29 @@ class RpmApp extends LitElement {
   onSubmitAddArtist(event) {
     event.preventDefault();
     this.submitAddArtist();
+  }
+
+  async submitEditArtist() {
+    if (!this.filterArtistId) {
+      this.error = "Select an artist first";
+      return;
+    }
+    const artistName = this.el("editArtistName").value.trim();
+    try {
+      await this.api(`/api/artists/${this.filterArtistId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ artistName }),
+      });
+      this.closeDialog("editArtistDialog");
+      await this.loadAll();
+    } catch (err) {
+      this.error = err.message;
+    }
+  }
+
+  onSubmitEditArtist(event) {
+    event.preventDefault();
+    this.submitEditArtist();
   }
 
   onAddSessionInputKeydown(event) {
@@ -452,6 +563,10 @@ class RpmApp extends LitElement {
       return html`<a class="lick-link" href=${row.lick_url} target="_blank" rel="noopener noreferrer">${row.lick_name}</a>`;
     }
     return html`${row.lick_name}`;
+  }
+
+  renderLickCell(row) {
+    return html`${this.renderLickName(row)}`;
   }
 
   header(label, key) {
@@ -523,6 +638,14 @@ class RpmApp extends LitElement {
                     </option>`,
                 )}
               </select>
+              ${this.filterArtistId
+                ? html`<button class="btn btn-small" @click=${this.openEditArtistDialog} aria-label="Edit artist" title="Edit artist">
+                    <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
+                      <path d="M13.8 5.9l3.2 3.2"></path>
+                    </svg>
+                  </button>`
+                : ""}
               ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
             </div>
             <div class="toolbar-row stats-row">
@@ -589,9 +712,15 @@ class RpmApp extends LitElement {
                                   <div class="compact-top">
                                     <div>
                                       <div class="muted">${row.artist_name}</div>
-                                      <div><strong>${this.renderLickName(row)}</strong></div>
+                                      <div><strong>${this.renderLickCell(row)}</strong></div>
                                     </div>
                                     <div class="actions">
+                                      <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
+                                        <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                          <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
+                                          <path d="M13.8 5.9l3.2 3.2"></path>
+                                        </svg>
+                                      </button>
                                       <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                         ...
                                       </button>
@@ -649,7 +778,7 @@ class RpmApp extends LitElement {
                             (row) => html`
                               <tr>
                                 <td>${row.artist_name}</td>
-                                <td class="lick-cell">${this.renderLickName(row)}</td>
+                                <td class="lick-cell">${this.renderLickCell(row)}</td>
                                 <td>${row.goal_rpm}</td>
                                 <td>
                                   <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>
@@ -666,6 +795,12 @@ class RpmApp extends LitElement {
                                 <td>${this.fmt(row.last_date)}</td>
                                 <td>
                                   <div class="actions">
+                                    <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
+                                      <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
+                                        <path d="M13.8 5.9l3.2 3.2"></path>
+                                      </svg>
+                                    </button>
                                     <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                       ...
                                     </button>
@@ -786,6 +921,54 @@ class RpmApp extends LitElement {
           </div>
           <div class="dialog-actions">
             <button type="button" class="btn" @click=${() => this.closeDialog("addArtistDialog")}>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="editArtistDialog" class="modal">
+        <form @submit=${this.onSubmitEditArtist}>
+          <h3>Edit Artist</h3>
+          <div class="range-grid">
+            <label for="editArtistName">Artist</label>
+            <input id="editArtistName" />
+          </div>
+          <div class="dialog-actions">
+            <button type="button" class="btn" @click=${() => this.closeDialog("editArtistDialog")}>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="editLickDialog" class="modal">
+        <form @submit=${this.onSubmitEditLick}>
+          <h3>Edit Lick</h3>
+          <div class="range-grid">
+            <div class="muted">
+              Artist:
+              ${this.editLick?.artist_name || "-"}
+            </div>
+            <label for="editLickName">Lick</label>
+            <input id="editLickName" />
+            <label for="editLickUrl">URL (optional)</label>
+            <input id="editLickUrl" type="url" placeholder="https://..." />
+            <label for="editGoalRpm">Goal RPM</label>
+            <div class="rpm-stepper">
+              <button type="button" class="btn btn-step" @click=${() => this.adjustEditGoalValue(-5)}>-</button>
+              <input
+                id="editGoalRpm"
+                class="rpm-number-input"
+                type="number"
+                min=${this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1)}
+                step="5"
+                @input=${this.updateEditGoalValue}
+                @keydown=${this.onEditGoalInputKeydown}
+              />
+              <button type="button" class="btn btn-step" @click=${() => this.adjustEditGoalValue(5)}>+</button>
+            </div>
+          </div>
+          <div class="dialog-actions">
+            <button type="button" class="btn" @click=${() => this.closeDialog("editLickDialog")}>Cancel</button>
             <button type="submit" class="btn btn-primary">Save</button>
           </div>
         </form>

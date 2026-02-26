@@ -15,6 +15,8 @@ import {
   initSchema,
   normalizeLocalDate,
   openDb,
+  renameArtist,
+  updateLick,
 } from "./db";
 
 const PORT = Number(process.env.PORT || 3000);
@@ -74,6 +76,28 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     }
   }
 
+  const artistMatch = url.pathname.match(/^\/api\/artists\/(\d+)$/);
+  if (artistMatch && req.method === "PATCH") {
+    try {
+      const artistId = Number(artistMatch[1]);
+      const body = (await req.json()) as { artistName?: string };
+      if (!body.artistName) {
+        return badRequest("artistName is required");
+      }
+      renameArtist(db, artistId, body.artistName);
+      return json({ ok: true });
+    } catch (err) {
+      const message = (err as Error).message;
+      if (message.includes("UNIQUE constraint failed")) {
+        return badRequest("Artist already exists");
+      }
+      if (message === "Artist not found") {
+        return notFound(message);
+      }
+      return badRequest(message);
+    }
+  }
+
   if (url.pathname === "/api/licks" && req.method === "GET") {
     try {
       const artistId = parseIntParam(url.searchParams.get("artist_id"));
@@ -116,6 +140,32 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const message = (err as Error).message;
       if (message.includes("UNIQUE constraint failed")) {
         return badRequest("Lick already exists for this artist");
+      }
+      return badRequest(message);
+    }
+  }
+
+  const lickMatch = url.pathname.match(/^\/api\/licks\/(\d+)$/);
+  if (lickMatch && req.method === "PATCH") {
+    try {
+      const lickId = Number(lickMatch[1]);
+      const body = (await req.json()) as {
+        lickName?: string;
+        goalRpm?: number;
+        url?: string;
+      };
+      if (!body.lickName || !body.goalRpm) {
+        return badRequest("lickName and goalRpm are required");
+      }
+      updateLick(db, lickId, body.lickName, body.goalRpm, body.url);
+      return json({ ok: true });
+    } catch (err) {
+      const message = (err as Error).message;
+      if (message.includes("UNIQUE constraint failed")) {
+        return badRequest("Lick already exists for this artist");
+      }
+      if (message === "Lick not found") {
+        return notFound(message);
       }
       return badRequest(message);
     }
