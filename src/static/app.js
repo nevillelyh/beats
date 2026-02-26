@@ -630,7 +630,7 @@ class RpmApp extends LitElement {
             <div class="toolbar-row">
               <label for="artistFilter">Artist</label>
               <select id="artistFilter" @change=${this.onArtistFilter}>
-                <option value="">All artists</option>
+                <option value="">All</option>
                 ${this.artists.map(
                   (artist) =>
                     html`<option value=${artist.id} ?selected=${String(artist.id) === this.filterArtistId}>

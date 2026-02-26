@@ -154,6 +154,7 @@ Columns:
 Rules:
 
 - Filter by artist.
+- Artist filter default option label is `All`.
 - Sort by any column.
 - Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
