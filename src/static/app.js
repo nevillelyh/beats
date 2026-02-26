@@ -395,10 +395,14 @@ class RpmApp extends LitElement {
   async submitAddArtist() {
     const artistName = this.el("newArtistName").value.trim();
     try {
-      await this.api("/api/artists", {
+      const created = await this.api("/api/artists", {
         method: "POST",
         body: JSON.stringify({ artistName }),
       });
+      if (created?.id !== undefined && created?.id !== null) {
+        this.filterArtistId = String(created.id);
+      }
+      this.syncUrlState();
       this.el("newArtistName").value = "";
       this.closeDialog("addArtistDialog");
       await this.loadAll();

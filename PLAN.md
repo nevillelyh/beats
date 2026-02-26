@@ -256,6 +256,7 @@ Shown only when artist filter is active. Modal uses currently selected artist an
 Shown only when no artist filter is active:
 
 - Artist name input
+- After create, artist filter automatically switches to the new artist
 - Keyboard UX:
   - `Enter` submits the dialog
   - `Esc` closes the dialog
