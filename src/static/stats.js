@@ -213,7 +213,7 @@ function renderSessionsBars(target, yAxis, rows) {
   target.appendChild(grid);
 }
 
-function renderDistributionBars(target, yAxis, rows) {
+function renderProgressBars(target, yAxis, rows) {
   target.textContent = "";
   if (!rows.length) {
     target.innerHTML = `<div class="muted">No lick data yet.</div>`;
@@ -245,7 +245,7 @@ function renderDistributionBars(target, yAxis, rows) {
 
     if (row.lick_count > 0) {
       const seg = document.createElement("div");
-      seg.className = "bar-seg-distribution";
+      seg.className = "bar-seg-progress";
       seg.style.height = `${Math.round(row.lick_count * scale)}px`;
       seg.style.backgroundColor = colorForBucket(row.bucket_pct);
       stack.appendChild(seg);
@@ -372,8 +372,8 @@ async function loadStats() {
   const rpmBars = document.querySelector("#rpmBars");
   const rpmYAxis = document.querySelector("#rpmYAxis");
   const rpmLegend = document.querySelector("#rpmLegend");
-  const distributionBars = document.querySelector("#distributionBars");
-  const distributionYAxis = document.querySelector("#distributionYAxis");
+  const progressBars = document.querySelector("#progressBars");
+  const progressYAxis = document.querySelector("#progressYAxis");
   if (
     !summary
     || !grid
@@ -384,8 +384,8 @@ async function loadStats() {
     || !rpmBars
     || !rpmYAxis
     || !rpmLegend
-    || !distributionBars
-    || !distributionYAxis
+    || !progressBars
+    || !progressYAxis
   ) {
     return;
   }
@@ -394,10 +394,10 @@ async function loadStats() {
     const headers = {
       "X-Local-Date": formatDate(new Date()),
     };
-    const [summaryResponse, barsResponse, distributionResponse] = await Promise.all([
+    const [summaryResponse, barsResponse, progressResponse] = await Promise.all([
       fetch("/api/stats", { headers }),
       fetch("/api/stats/bars", { headers }),
-      fetch("/api/stats/distribution", { headers }),
+      fetch("/api/stats/progress", { headers }),
     ]);
     const summaryPayload = await summaryResponse.json();
     if (!summaryResponse.ok) {
@@ -407,9 +407,9 @@ async function loadStats() {
     if (!barsResponse.ok) {
       throw new Error(barsPayload.error || `Request failed: ${barsResponse.status}`);
     }
-    const distributionPayload = await distributionResponse.json();
-    if (!distributionResponse.ok) {
-      throw new Error(distributionPayload.error || `Request failed: ${distributionResponse.status}`);
+    const progressPayload = await progressResponse.json();
+    if (!progressResponse.ok) {
+      throw new Error(progressPayload.error || `Request failed: ${progressResponse.status}`);
     }
 
     const rows = summaryPayload.data || [];
@@ -489,7 +489,7 @@ async function loadStats() {
 
     renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
     renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
-    renderDistributionBars(distributionBars, distributionYAxis, distributionPayload.data || []);
+    renderProgressBars(progressBars, progressYAxis, progressPayload.data || []);
   } catch (err) {
     summary.textContent = err instanceof Error ? err.message : "Failed to load stats";
     sessionsBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
@@ -497,8 +497,8 @@ async function loadStats() {
     rpmBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
     rpmYAxis.textContent = "";
     rpmLegend.textContent = "";
-    distributionBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    distributionYAxis.textContent = "";
+    progressBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
+    progressYAxis.textContent = "";
   }
 }
 

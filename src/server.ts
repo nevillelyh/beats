@@ -3,7 +3,7 @@ import {
   addSession,
   createArtist,
   createLick,
-  getBestPctDistribution,
+  getProgressDistribution,
   getArtists,
   getStatsBars,
   getStats,
@@ -15,7 +15,7 @@ import {
   initSchema,
   normalizeLocalDate,
   openDb,
-  renameArtist,
+  updateArtist,
   updateLick,
 } from "./db";
 
@@ -84,7 +84,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       if (!body.artistName) {
         return badRequest("artistName is required");
       }
-      renameArtist(db, artistId, body.artistName);
+      updateArtist(db, artistId, body.artistName);
       return json({ ok: true });
     } catch (err) {
       const message = (err as Error).message;
@@ -119,8 +119,8 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     return json({ data: getStatsBars(db) });
   }
 
-  if (url.pathname === "/api/stats/distribution" && req.method === "GET") {
-    return json({ data: getBestPctDistribution(db) });
+  if (url.pathname === "/api/stats/progress" && req.method === "GET") {
+    return json({ data: getProgressDistribution(db) });
   }
 
   if (url.pathname === "/api/licks" && req.method === "POST") {

@@ -60,7 +60,7 @@ export type StatsBars = {
   rpms: StatsRpmBarsDay[];
 };
 
-export type StatsBestPctBin = {
+export type StatsProgressBin = {
   bucket_pct: number;
   lick_count: number;
 };
@@ -126,7 +126,7 @@ export function createArtist(db: Database, artistName: string): number {
   return row.id;
 }
 
-export function renameArtist(db: Database, artistId: number, artistName: string): void {
+export function updateArtist(db: Database, artistId: number, artistName: string): void {
   if (!Number.isInteger(artistId) || artistId <= 0) {
     throw new Error("artistId must be a positive integer");
   }
@@ -496,7 +496,7 @@ export function getStatsBars(db: Database): StatsBars {
   };
 }
 
-export function getBestPctDistribution(db: Database): StatsBestPctBin[] {
+export function getProgressDistribution(db: Database): StatsProgressBin[] {
   const rows = db
     .query(
       `SELECT
@@ -520,7 +520,7 @@ export function getBestPctDistribution(db: Database): StatsBestPctBin[] {
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
 
-  const output: StatsBestPctBin[] = [];
+  const output: StatsProgressBin[] = [];
   for (let bucket = 0; bucket <= 100; bucket += 10) {
     output.push({
       bucket_pct: bucket,

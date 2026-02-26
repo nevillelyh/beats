@@ -100,7 +100,7 @@ Provide `scripts/import_csv.py`:
   - Body: `{ artistName }`
 - `PATCH /api/artists/:artistId`
   - Body: `{ artistName }`
-  - Renames artist with the same unique-name constraint as create.
+  - Updates artist name with the same unique-name constraint as create.
 - `GET /api/licks?artist_id=&sort_by=&sort_dir=`
   - Returns lick rows with aggregates:
     - `lick_url`, `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
@@ -126,9 +126,9 @@ Provide `scripts/import_csv.py`:
       - Deltas chart uses weighted stack heights:
         - `first` contributes `+5` per first session
         - each bin contributes `delta_bin * session_count`
-- `GET /api/stats/distribution`
+- `GET /api/stats/progress`
   - Returns best-% distribution bins:
-    - `bucket_pct` from `0..100` in `5%` steps
+    - `bucket_pct` from `0..100` in `10%` steps
     - `lick_count`
 
 ## UI Specification

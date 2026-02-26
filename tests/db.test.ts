@@ -4,7 +4,7 @@ import {
   addSession,
   createArtist,
   createLick,
-  getBestPctDistribution,
+  getProgressDistribution,
   getArtists,
   getStatsBars,
   getStats,
@@ -12,7 +12,7 @@ import {
   getSessionRpmRange,
   hasSessionForDate,
   openDb,
-  renameArtist,
+  updateArtist,
   updateLick,
 } from "../src/db";
 
@@ -45,16 +45,16 @@ beforeEach(() => {
 });
 
 describe("db behavior", () => {
-  test("rename artist updates artist name", () => {
+  test("update artist updates artist name", () => {
     const artistId = createArtist(db, "Pat");
-    renameArtist(db, artistId, "Pat Metheny");
+    updateArtist(db, artistId, "Pat Metheny");
     expect(getArtists(db)).toEqual([{ id: artistId, name: "Pat Metheny" }]);
   });
 
-  test("rename artist preserves unique name constraint", () => {
+  test("update artist preserves unique name constraint", () => {
     const a = createArtist(db, "Pat");
     createArtist(db, "Kurt");
-    expect(() => renameArtist(db, a, "Kurt")).toThrow();
+    expect(() => updateArtist(db, a, "Kurt")).toThrow();
   });
 
   test("update lick edits name, url, and goal", () => {
@@ -182,7 +182,7 @@ describe("db behavior", () => {
       const lick_count = bucket === 0 || bucket === 20 || bucket === 60 || bucket === 100 ? 1 : 0;
       expected.push({ bucket_pct: bucket, lick_count });
     }
-    expect(getBestPctDistribution(db)).toEqual(expected);
+    expect(getProgressDistribution(db)).toEqual(expected);
     expect(a).toBeGreaterThan(0);
   });
 });
