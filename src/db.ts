@@ -38,6 +38,7 @@ export type StatsSessionBarsDay = {
   first_sessions: number;
   completion_sessions: number;
   progression_sessions: number;
+  first_completion_sessions: number;
 };
 
 export type StatsProgressBarsDay = {
@@ -430,6 +431,7 @@ export function getStatsBars(db: Database): StatsBars {
         first_sessions: 0,
         completion_sessions: 0,
         progression_sessions: 0,
+        first_completion_sessions: 0,
       };
       sessionsByDate.set(row.date, day);
     }
@@ -446,7 +448,10 @@ export function getStatsBars(db: Database): StatsBars {
       rpmsByDate.set(row.date, rpmDay);
     }
 
-    if (!state.seen) {
+    if (!state.seen && pct >= 100) {
+      day.first_completion_sessions += 1;
+      rpmDay.first_sessions += 1;
+    } else if (!state.seen) {
       day.first_sessions += 1;
       rpmDay.first_sessions += 1;
     } else if (!state.reached_goal && pct >= 100) {

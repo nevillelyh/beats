@@ -247,7 +247,9 @@ Each lick row has:
   - Y-axis weekday labels
 - On wide desktop screens, the stats card should size to chart content instead of stretching across the full container.
 - Additional charts under the heatmap:
-  - `Sessions`: stacked daily bars (`First`, `Progression`, `Completion`)
+  - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)
+    - `First+Completion` is for sessions that are both first and completion.
+    - Stack order: `First` (bottom), `Progression`, `Completion`, `First+Completion` (top).
     - On mobile, display window is last `30` days.
   - `Deltas`: stacked daily bars with `First` at the bottom, then absolute RPM-change bins (`+5`, `+10`, ...)
     - Legend shows one trailing unit label (`RPM`) instead of repeating units per bin

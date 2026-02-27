@@ -136,6 +136,7 @@ describe("db behavior", () => {
   test("stats bars classify sessions and compute progress deltas by day", () => {
     const lickA = createLick(db, "Pat", "Line A", 100);
     const lickB = createLick(db, "Pat", "Line B", 200);
+    const lickC = createLick(db, "Pat", "Line C", 100);
 
     addSession(db, lickA, "2026-02-10", 40);   // first, +10
     addSession(db, lickA, "2026-02-11", 70);   // progression, +30
@@ -144,24 +145,25 @@ describe("db behavior", () => {
 
     addSession(db, lickB, "2026-02-11", 120);  // first, +10
     addSession(db, lickB, "2026-02-12", 150);  // progression, +15
+    addSession(db, lickC, "2026-02-12", 110);  // first+completion, +10
 
     expect(getStatsBars(db)).toEqual({
       sessions: [
-        { date: "2026-02-10", first_sessions: 1, completion_sessions: 0, progression_sessions: 0 },
-        { date: "2026-02-11", first_sessions: 1, completion_sessions: 0, progression_sessions: 1 },
-        { date: "2026-02-12", first_sessions: 0, completion_sessions: 1, progression_sessions: 1 },
-        { date: "2026-02-13", first_sessions: 0, completion_sessions: 0, progression_sessions: 1 },
+        { date: "2026-02-10", first_sessions: 1, completion_sessions: 0, progression_sessions: 0, first_completion_sessions: 0 },
+        { date: "2026-02-11", first_sessions: 1, completion_sessions: 0, progression_sessions: 1, first_completion_sessions: 0 },
+        { date: "2026-02-12", first_sessions: 0, completion_sessions: 1, progression_sessions: 1, first_completion_sessions: 1 },
+        { date: "2026-02-13", first_sessions: 0, completion_sessions: 0, progression_sessions: 1, first_completion_sessions: 0 },
       ],
       progress: [
         { date: "2026-02-10", progress_values: [10] },
         { date: "2026-02-11", progress_values: [30, 10] },
-        { date: "2026-02-12", progress_values: [35, 15] },
+        { date: "2026-02-12", progress_values: [35, 15, 10] },
         { date: "2026-02-13", progress_values: [-5] },
       ],
       rpms: [
         { date: "2026-02-10", first_sessions: 1, delta_bins: [] },
         { date: "2026-02-11", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }] },
-        { date: "2026-02-12", first_sessions: 0, delta_bins: [{ delta_bin: 30, session_count: 1 }, { delta_bin: 35, session_count: 1 }] },
+        { date: "2026-02-12", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }, { delta_bin: 35, session_count: 1 }] },
         { date: "2026-02-13", first_sessions: 0, delta_bins: [{ delta_bin: 5, session_count: 1 }] },
       ],
     });

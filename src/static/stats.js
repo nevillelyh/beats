@@ -168,7 +168,12 @@ function renderSessionsBars(target, yAxis, rows) {
 
   const maxTotal = Math.max(
     1,
-    ...rows.map((r) => r.first_sessions + r.completion_sessions + r.progression_sessions),
+    ...rows.map((r) => (
+      r.first_sessions
+      + r.progression_sessions
+      + r.first_completion_sessions
+      + r.completion_sessions
+    )),
   );
   const scale = BARS_HEIGHT / maxTotal;
   renderYAxis(yAxis, maxTotal, { targetTicks: 4, minStep: 1 });
@@ -184,12 +189,13 @@ function renderSessionsBars(target, yAxis, rows) {
     const stack = document.createElement("div");
     stack.className = "bar-stack";
     stack.style.height = `${BARS_HEIGHT}px`;
-    stack.title = `${row.date}: first ${row.first_sessions}, completion ${row.completion_sessions}, progression ${row.progression_sessions}`;
+    stack.title = `${row.date}: first ${row.first_sessions}, progression ${row.progression_sessions}, completion ${row.completion_sessions}, first+completion ${row.first_completion_sessions}`;
 
     const segments = [
       ["bar-seg-first", row.first_sessions],
       ["bar-seg-progression", row.progression_sessions],
       ["bar-seg-completion", row.completion_sessions],
+      ["bar-seg-first-completion", row.first_completion_sessions],
     ];
     for (const [cls, count] of segments) {
       if (count <= 0) {
@@ -472,6 +478,7 @@ async function loadStats() {
         first_sessions: 0,
         completion_sessions: 0,
         progression_sessions: 0,
+        first_completion_sessions: 0,
       };
     });
 

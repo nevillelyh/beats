@@ -238,6 +238,15 @@
   background: #4ade80;
 }
 
+.bar-seg-first-completion {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #bbf7d0 0 4px,
+      #15803d 4px 8px
+    );
+}
+
 .bar-seg-progress {
   background: #34d399;
 }
