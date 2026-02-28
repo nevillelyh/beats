@@ -1,15 +1,10 @@
-const DESKTOP_WEEKS = 53;
-const MOBILE_WEEKS = 22;
+const HEATMAP_DEFAULT_WEEKS = 52;
 const BARS_HEIGHT = 180;
 const DESKTOP_BAR_DAYS = 50;
 const MOBILE_BAR_DAYS = 30;
 
 function isMobileViewport() {
   return window.matchMedia("(max-width: 480px)").matches;
-}
-
-function getHeatmapWeeks() {
-  return isMobileViewport() ? MOBILE_WEEKS : DESKTOP_WEEKS;
 }
 
 function getBarDays() {
@@ -99,6 +94,142 @@ function renderMonthAxis(axis, startWeek, weeks) {
 
     lastLabeledMonth = monthForWeek;
     lastLabeledWeek = week;
+  }
+}
+
+function getCalendarYearBounds(year) {
+  return {
+    startDate: new Date(year, 0, 1, 12, 0, 0, 0),
+    endDate: new Date(year, 11, 31, 12, 0, 0, 0),
+  };
+}
+
+function getHeatmapRange(rangeValue) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  if (rangeValue === "rolling") {
+    const endWeek = startOfWeekSunday(today);
+    const startWeek = new Date(endWeek);
+    startWeek.setDate(startWeek.getDate() - (HEATMAP_DEFAULT_WEEKS - 1) * 7);
+    const endDate = new Date(startWeek);
+    endDate.setDate(startWeek.getDate() + (HEATMAP_DEFAULT_WEEKS * 7) - 1);
+    return {
+      kind: "rolling",
+      year: null,
+      startDate: startWeek,
+      endDate,
+      startWeek,
+      weeks: HEATMAP_DEFAULT_WEEKS,
+      today,
+    };
+  }
+
+  const year = Number(rangeValue);
+  if (!Number.isInteger(year)) {
+    throw new Error("Invalid heatmap range");
+  }
+  const bounds = getCalendarYearBounds(year);
+  const startWeek = startOfWeekSunday(bounds.startDate);
+  const endWeek = startOfWeekSunday(bounds.endDate);
+  const weeks = Math.round((endWeek.getTime() - startWeek.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  return {
+    kind: "year",
+    year,
+    startDate: bounds.startDate,
+    endDate: bounds.endDate,
+    startWeek,
+    weeks,
+    today,
+  };
+}
+
+function buildRangeOptions(rows) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const currentYear = today.getFullYear();
+  const firstDate = rows.length ? rows.reduce((min, row) => (row.date < min ? row.date : min), rows[0].date) : null;
+  const firstYear = firstDate ? Number(firstDate.slice(0, 4)) : currentYear;
+  const options = [{ value: "rolling", label: "Last year" }];
+  for (let year = currentYear; year >= firstYear; year -= 1) {
+    options.push({ value: String(year), label: String(year) });
+  }
+  return options;
+}
+
+function populateRangeSelect(select, options) {
+  select.textContent = "";
+  for (const option of options) {
+    const el = document.createElement("option");
+    el.value = option.value;
+    el.textContent = option.label;
+    select.appendChild(el);
+  }
+  select.value = "rolling";
+}
+
+function renderHeatmap({
+  statsCard,
+  statsBarsWrap,
+  grid,
+  monthAxis,
+  weekdayAxis,
+  summary,
+  statsWrap,
+  rows,
+  rangeValue,
+}) {
+  const countByDate = new Map(rows.map((row) => [row.date, row.session_count]));
+  const maxCount = rows.reduce((max, row) => Math.max(max, row.session_count), 0);
+  const range = getHeatmapRange(rangeValue);
+
+  statsCard.style.setProperty("--weeks", String(range.weeks));
+  statsBarsWrap.style.setProperty("--weeks", String(range.weeks));
+  grid.style.setProperty("--weeks", String(range.weeks));
+  renderWeekdayAxis(weekdayAxis);
+  renderMonthAxis(monthAxis, range.startWeek, range.weeks);
+
+  let total = 0;
+  let activeDays = 0;
+  grid.textContent = "";
+
+  for (let week = 0; week < range.weeks; week += 1) {
+    for (let day = 0; day < 7; day += 1) {
+      const current = new Date(range.startWeek);
+      current.setDate(range.startWeek.getDate() + week * 7 + day);
+      const key = formatDate(current);
+      const isOutsideYear = range.kind === "year" && (current < range.startDate || current > range.endDate);
+      const isFutureRolling = range.kind === "rolling" && current > range.today;
+      const excluded = isOutsideYear || isFutureRolling;
+      const count = excluded ? 0 : Number(countByDate.get(key) || 0);
+      const level = excluded ? 0 : toLevel(count, maxCount);
+
+      total += count;
+      if (count > 0) {
+        activeDays += 1;
+      }
+
+      const cell = document.createElement("div");
+      cell.className = `pixel level-${level}`;
+      cell.title = `${key}: ${count} session${count === 1 ? "" : "s"}`;
+      if (excluded) {
+        cell.style.opacity = "0.35";
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  if (range.kind === "rolling") {
+    summary.textContent = `${total} sessions over ${activeDays} active days in the last ${HEATMAP_DEFAULT_WEEKS} weeks`;
+  } else {
+    summary.textContent = `${total} sessions over ${activeDays} active days in ${range.year}`;
+  }
+
+  if (isMobileViewport() && range.kind === "rolling") {
+    requestAnimationFrame(() => {
+      statsWrap.scrollLeft = Math.max(0, statsWrap.scrollWidth - statsWrap.clientWidth);
+    });
+  } else {
+    statsWrap.scrollLeft = 0;
   }
 }
 
@@ -431,7 +562,11 @@ function renderRpmBars(target, yAxis, legend, rows) {
 
 async function loadStats() {
   const summary = document.querySelector("#statsSummary");
+  const statsCard = document.querySelector(".stats-card");
+  const statsBarsWrap = document.querySelector(".stats-bars-wrap");
   const grid = document.querySelector("#statsGrid");
+  const statsWrap = document.querySelector(".stats-wrap");
+  const rangeSelect = document.querySelector("#statsRangeSelect");
   const monthAxis = document.querySelector("#statsMonthAxis");
   const weekdayAxis = document.querySelector("#statsWeekdayAxis");
   const sessionsBars = document.querySelector("#sessionsBars");
@@ -449,7 +584,11 @@ async function loadStats() {
   const histDaysYAxis = document.querySelector("#histDaysYAxis");
   if (
     !summary
+    || !statsCard
+    || !statsBarsWrap
     || !grid
+    || !statsWrap
+    || !rangeSelect
     || !monthAxis
     || !weekdayAxis
     || !sessionsBars
@@ -497,50 +636,31 @@ async function loadStats() {
     }
 
     const rows = summaryPayload.data || [];
-    const countByDate = new Map(rows.map((row) => [row.date, row.session_count]));
-    const maxCount = rows.reduce((max, row) => Math.max(max, row.session_count), 0);
-    const weeks = getHeatmapWeeks();
-
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-    const endWeek = startOfWeekSunday(today);
-    const startWeek = new Date(endWeek);
-    startWeek.setDate(startWeek.getDate() - (weeks - 1) * 7);
-
-    renderWeekdayAxis(weekdayAxis);
-    renderMonthAxis(monthAxis, startWeek, weeks);
-
-    let total = 0;
-    let activeDays = 0;
-    grid.textContent = "";
-
-    for (let week = 0; week < weeks; week += 1) {
-      for (let day = 0; day < 7; day += 1) {
-        const current = new Date(startWeek);
-        current.setDate(startWeek.getDate() + week * 7 + day);
-        const key = formatDate(current);
-        const isFuture = current > today;
-        const count = isFuture ? 0 : Number(countByDate.get(key) || 0);
-        const level = isFuture ? 0 : toLevel(count, maxCount);
-
-        if (!isFuture) {
-          total += count;
-          if (count > 0) {
-            activeDays += 1;
-          }
-        }
-
-        const cell = document.createElement("div");
-        cell.className = `pixel level-${level}`;
-        cell.title = `${key}: ${count} session${count === 1 ? "" : "s"}`;
-        if (isFuture) {
-          cell.style.opacity = "0.35";
-        }
-        grid.appendChild(cell);
-      }
-    }
-
-    summary.textContent = `${total} sessions over ${activeDays} active days in the last ${weeks} weeks`;
+    populateRangeSelect(rangeSelect, buildRangeOptions(rows));
+    renderHeatmap({
+      statsCard,
+      statsBarsWrap,
+      grid,
+      monthAxis,
+      weekdayAxis,
+      summary,
+      statsWrap,
+      rows,
+      rangeValue: rangeSelect.value,
+    });
+    rangeSelect.addEventListener("change", () => {
+      renderHeatmap({
+        statsCard,
+        statsBarsWrap,
+        grid,
+        monthAxis,
+        weekdayAxis,
+        summary,
+        statsWrap,
+        rows,
+        rangeValue: rangeSelect.value,
+      });
+    });
 
     const sessionByDate = new Map((barsPayload.data?.sessions || []).map((row) => [row.date, row]));
     const rpmByDate = new Map((barsPayload.data?.rpms || []).map((row) => [row.date, row]));

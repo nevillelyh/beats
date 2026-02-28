@@ -2,14 +2,15 @@
   --cell-size: 12px;
   --cell-gap: 3px;
   --axis-width: 34px;
+  --axis-gap: 6px;
   --month-axis-height: 16px;
-  --weeks: 53;
+  --weeks: 52;
+  --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));
 }
 
 .stats-card {
-  padding: 16px;
-  width: fit-content;
-  max-width: 100%;
+  padding: 12px;
+  width: calc(var(--axis-width) + var(--axis-gap) + var(--heatmap-width) + 26px);
   margin: 0 auto;
 }
 
@@ -22,18 +23,28 @@
   margin-bottom: 12px;
 }
 
+.stats-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-controls select {
+  min-width: 128px;
+}
+
 .stats-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
   padding-bottom: 6px;
 }
 
 .stats-chart {
   display: grid;
-  grid-template-columns: var(--axis-width) max-content;
+  grid-template-columns: var(--axis-width) var(--heatmap-width);
   grid-template-rows: var(--month-axis-height) max-content;
-  column-gap: 6px;
+  column-gap: var(--axis-gap);
   row-gap: 6px;
-  width: max-content;
+  width: calc(var(--axis-width) + var(--axis-gap) + var(--heatmap-width));
 }
 
 .stats-month-spacer {
@@ -49,7 +60,8 @@
   font-size: 0.72rem;
   line-height: 1;
   color: var(--muted);
-  width: max-content;
+  width: var(--heatmap-width);
+  overflow: hidden;
 }
 
 .stats-month-axis span {
@@ -77,9 +89,9 @@
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(7, var(--cell-size));
-  grid-auto-columns: var(--cell-size);
+  grid-template-columns: repeat(var(--weeks), var(--cell-size));
   gap: var(--cell-gap);
-  width: max-content;
+  width: var(--heatmap-width);
 }
 
 .pixel {
@@ -119,7 +131,7 @@
 .stats-bars-wrap {
   --cell-size: 12px;
   --cell-gap: 3px;
-  --weeks: 53;
+  --weeks: 52;
   --axis-width: 34px;
   --axis-gap: 6px;
   --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));
@@ -303,9 +315,9 @@
 }
 
 @media (max-width: 480px) {
-  .stats-card,
-  .stats-bars-wrap {
-    --weeks: 22;
+  .stats-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .stats-bars-row {
@@ -323,6 +335,7 @@
   .stats-card,
   .stats-bars-card {
     width: 100%;
+    max-width: 100%;
   }
 
   .bars-plot {

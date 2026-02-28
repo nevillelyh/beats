@@ -268,9 +268,14 @@ Each lick row has:
     - `Sessions To Completion`
     - `Days To Completion`
     - All three render on the same row on wide screens.
-  - Heatmap mobile behavior:
-    - last `22` weeks
-    - Y-axis labels use `M / W / F` (desktop remains `Mon / Wed / Fri`)
+  - Heatmap range/viewport behavior:
+    - default range is rolling `Last year` (`52` weeks, ending this week) on all viewports
+    - range dropdown includes `Last year` plus calendar years in descending order down to first session year
+    - selecting a calendar year renders that full year (`Jan 01` to `Dec 31`)
+    - mobile allows horizontal scrolling for the heatmap when needed
+    - on mobile default (`Last year`) view, initial scroll is right-aligned so newest days are visible
+    - desktop heatmap card width is fixed to match the chart-width model used by the bar-chart cards
+    - Safari overflow/truncation is avoided by explicit heatmap-width column sizing (no `max-content` growth)
 
 ### Add lick
 
