@@ -15,7 +15,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-8. Add a dedicated stats page (GitHub-style contribution grid) reachable from the main header.
+8. Use 3 top-level tabs: `Licks` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
 
 ## Tech Stack
 
@@ -243,15 +243,14 @@ Each lick row has:
     - same per-artist unique lick-name constraint
     - minimum goal RPM is prior best session RPM when it exists
 
-### Stats page
+### Trends and Stats pages
 
-- Main header includes `Stats` button next to `RPMs` title.
-- `Stats` route renders a GitHub-style pixel grid using session-count-per-day.
-- Axes:
-  - X-axis month labels
-  - Y-axis weekday labels
-- On wide desktop screens, the stats card should size to chart content instead of stretching across the full container.
-- Additional charts under the heatmap:
+- Global tab navigation is shown next to the `RPMs` title:
+  - `Licks` (`/`)
+  - `Trends` (`/trends.html`)
+  - `Stats` (`/stats.html`)
+- `Trends` page (`RPMs - Trends`) renders:
+  - GitHub-style heatmap with month/day axes
   - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)
     - `First+Completion` is for sessions that are both first and completion.
     - Stack order: `First` (bottom), `Progression`, `Completion`, `First+Completion` (top).
@@ -262,12 +261,7 @@ Each lick row has:
       - `First` = `first_sessions * 5`
       - each delta bin = `delta_bin * session_count`
     - On mobile, display window is last `30` days.
-  - `Progress`: best-% distribution bars (`0, 10, 20, ... 100`)
-  - Bottom histograms:
-    - `Session Deltas`
-    - `Sessions To Completion`
-    - `Days To Completion`
-    - All three render on the same row on wide screens.
+  - On wide desktop screens, the heatmap card uses fixed chart-width sizing (not full-width stretch).
   - Heatmap range/viewport behavior:
     - default range is rolling `Last year` (`52` weeks, ending this week) on all viewports
     - range dropdown includes `Last year` plus calendar years in descending order down to first session year
@@ -276,6 +270,12 @@ Each lick row has:
     - on mobile default (`Last year`) view, initial scroll is right-aligned so newest days are visible
     - desktop heatmap card width is fixed to match the chart-width model used by the bar-chart cards
     - Safari overflow/truncation is avoided by explicit heatmap-width column sizing (no `max-content` growth)
+- `Stats` page (`RPMs - Stats`) renders:
+  - `Progress`: best-% distribution bars (`0, 10, 20, ... 100`)
+  - `Session Deltas` histogram
+  - `Sessions To Completion` histogram
+  - `Days To Completion` histogram
+  - Layout uses 2 graphs per row on wide screens.
 
 ### Add lick
 
@@ -336,9 +336,11 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
 16. Docker image builds and app starts on port `3000`.
 17. SQLite file persists across restarts when `/data` is mounted.
-18. Stats page renders a contribution-style grid with month/day axes using `/api/stats`.
-19. Artist edit flow enforces unique artist names.
-20. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
+18. Trends page renders a contribution-style grid with month/day axes using `/api/stats`.
+19. Trends and Stats pages render only their owned graph sections from shared stats APIs.
+20. Stats page uses a 2-per-row chart layout on wide screens.
+21. Artist edit flow enforces unique artist names.
+22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 
 ## Implementation Milestones
 
@@ -356,7 +358,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 12. CSV importer script enhancements.
 13. Dockerfile + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.
-15. Stats page (`/stats.html`) + `GET /api/stats` + axis labels.
+15. Split analytics UI into `Trends` (`/trends.html`) and `Stats` (`/stats.html`) with shared tab navigation.
 
 ## Reference Docs
 

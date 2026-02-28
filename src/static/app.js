@@ -562,7 +562,11 @@ class RpmApp extends LitElement {
         <div class="header">
           <div class="title-row">
             <h1 class="title">RPMs</h1>
-            <a class="btn btn-small" href="/stats.html">Stats</a>
+            <div class="page-tabs">
+              <a class="btn btn-small btn-primary" href="/">Licks</a>
+              <a class="btn btn-small" href="/trends.html">Trends</a>
+              <a class="btn btn-small" href="/stats.html">Stats</a>
+            </div>
           </div>
           ${this.filterArtistId
             ? html`<button class="btn btn-primary" @click=${this.openAddLickDialog}>+ Add Lick</button>`

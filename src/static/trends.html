@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RPMs - Trends</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/stats.css" />
+    <script type="module" src="/stats.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="title-row">
+          <h1 class="title">RPMs</h1>
+          <div class="page-tabs">
+            <a class="btn btn-small" href="/">Licks</a>
+            <a class="btn btn-small btn-primary" href="/trends.html">Trends</a>
+            <a class="btn btn-small" href="/stats.html">Stats</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card stats-card">
+        <div class="stats-meta">
+          <div id="statsSummary" class="muted">Loading...</div>
+          <div class="stats-controls">
+            <label for="statsRangeSelect" class="muted">Range</label>
+            <select id="statsRangeSelect" aria-label="Heatmap range"></select>
+          </div>
+          <div class="stats-legend">
+            <span class="muted">Less</span>
+            <span class="pixel level-0"></span>
+            <span class="pixel level-1"></span>
+            <span class="pixel level-2"></span>
+            <span class="pixel level-3"></span>
+            <span class="pixel level-4"></span>
+            <span class="muted">More</span>
+          </div>
+        </div>
+        <div class="stats-wrap">
+          <div class="stats-chart" aria-label="Practice session trends">
+            <div class="stats-month-spacer"></div>
+            <div id="statsMonthAxis" class="stats-month-axis" aria-hidden="true"></div>
+            <div id="statsWeekdayAxis" class="stats-weekday-axis" aria-hidden="true"></div>
+            <div id="statsGrid" class="stats-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-bars-wrap">
+        <div class="card stats-bars-card">
+          <div class="bars-section">
+            <h3 class="bars-title">Sessions</h3>
+            <div class="bars-legend">
+              <span class="legend-item"><span class="legend-swatch bar-seg-first"></span>First</span>
+              <span class="legend-item"><span class="legend-swatch bar-seg-progression"></span>Progression</span>
+              <span class="legend-item"><span class="legend-swatch bar-seg-completion"></span>Completion</span>
+              <span class="legend-item"><span class="legend-swatch bar-seg-first-completion"></span>First+Completion</span>
+            </div>
+            <div class="bars-plot">
+              <div id="sessionsYAxis" class="bars-y-axis"></div>
+              <div id="sessionsBars" class="bars-chart"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card stats-bars-card">
+          <div class="bars-section">
+            <h3 class="bars-title">Deltas</h3>
+            <div id="rpmLegend" class="bars-legend"></div>
+            <div class="bars-plot">
+              <div id="rpmYAxis" class="bars-y-axis"></div>
+              <div id="rpmBars" class="bars-chart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

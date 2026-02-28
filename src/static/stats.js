@@ -183,7 +183,9 @@ function renderHeatmap({
   const range = getHeatmapRange(rangeValue);
 
   statsCard.style.setProperty("--weeks", String(range.weeks));
-  statsBarsWrap.style.setProperty("--weeks", String(range.weeks));
+  if (statsBarsWrap) {
+    statsBarsWrap.style.setProperty("--weeks", String(range.weeks));
+  }
   grid.style.setProperty("--weeks", String(range.weeks));
   renderWeekdayAxis(weekdayAxis);
   renderMonthAxis(monthAxis, range.startWeek, range.weeks);
@@ -562,6 +564,7 @@ function renderRpmBars(target, yAxis, legend, rows) {
 
 async function loadStats() {
   const summary = document.querySelector("#statsSummary");
+  const pageError = document.querySelector("#statsPageError");
   const statsCard = document.querySelector(".stats-card");
   const statsBarsWrap = document.querySelector(".stats-bars-wrap");
   const grid = document.querySelector("#statsGrid");
@@ -582,73 +585,58 @@ async function loadStats() {
   const histSessionsYAxis = document.querySelector("#histSessionsYAxis");
   const histDaysBars = document.querySelector("#histDaysBars");
   const histDaysYAxis = document.querySelector("#histDaysYAxis");
-  if (
-    !summary
-    || !statsCard
-    || !statsBarsWrap
-    || !grid
-    || !statsWrap
-    || !rangeSelect
-    || !monthAxis
-    || !weekdayAxis
-    || !sessionsBars
-    || !sessionsYAxis
-    || !rpmBars
-    || !rpmYAxis
-    || !rpmLegend
-    || !progressBars
-    || !progressYAxis
-    || !histDeltasBars
-    || !histDeltasYAxis
-    || !histSessionsBars
-    || !histSessionsYAxis
-    || !histDaysBars
-    || !histDaysYAxis
-  ) {
+  const hasHeatmap = Boolean(
+    summary
+      && statsCard
+      && grid
+      && statsWrap
+      && rangeSelect
+      && monthAxis
+      && weekdayAxis,
+  );
+  const hasSessionBars = Boolean(
+    sessionsBars
+      && sessionsYAxis
+      && rpmBars
+      && rpmYAxis
+      && rpmLegend,
+  );
+  const hasProgress = Boolean(progressBars && progressYAxis);
+  const hasHistograms = Boolean(
+    histDeltasBars
+      && histDeltasYAxis
+      && histSessionsBars
+      && histSessionsYAxis
+      && histDaysBars
+      && histDaysYAxis,
+  );
+  if (!hasHeatmap && !hasSessionBars && !hasProgress && !hasHistograms) {
     return;
+  }
+
+  async function fetchJson(path, headers) {
+    const response = await fetch(path, { headers });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || `Request failed: ${response.status}`);
+    }
+    return payload;
   }
 
   try {
     const headers = {
       "X-Local-Date": formatDate(new Date()),
     };
-    const [summaryResponse, barsResponse, progressResponse, histResponse] = await Promise.all([
-      fetch("/api/stats", { headers }),
-      fetch("/api/stats/bars", { headers }),
-      fetch("/api/stats/progress", { headers }),
-      fetch("/api/stats/histograms", { headers }),
+    const [summaryPayload, barsPayload, progressPayload, histPayload] = await Promise.all([
+      hasHeatmap ? fetchJson("/api/stats", headers) : Promise.resolve(null),
+      hasSessionBars ? fetchJson("/api/stats/bars", headers) : Promise.resolve(null),
+      hasProgress ? fetchJson("/api/stats/progress", headers) : Promise.resolve(null),
+      hasHistograms ? fetchJson("/api/stats/histograms", headers) : Promise.resolve(null),
     ]);
-    const summaryPayload = await summaryResponse.json();
-    if (!summaryResponse.ok) {
-      throw new Error(summaryPayload.error || `Request failed: ${summaryResponse.status}`);
-    }
-    const barsPayload = await barsResponse.json();
-    if (!barsResponse.ok) {
-      throw new Error(barsPayload.error || `Request failed: ${barsResponse.status}`);
-    }
-    const progressPayload = await progressResponse.json();
-    if (!progressResponse.ok) {
-      throw new Error(progressPayload.error || `Request failed: ${progressResponse.status}`);
-    }
-    const histPayload = await histResponse.json();
-    if (!histResponse.ok) {
-      throw new Error(histPayload.error || `Request failed: ${histResponse.status}`);
-    }
 
-    const rows = summaryPayload.data || [];
-    populateRangeSelect(rangeSelect, buildRangeOptions(rows));
-    renderHeatmap({
-      statsCard,
-      statsBarsWrap,
-      grid,
-      monthAxis,
-      weekdayAxis,
-      summary,
-      statsWrap,
-      rows,
-      rangeValue: rangeSelect.value,
-    });
-    rangeSelect.addEventListener("change", () => {
+    if (hasHeatmap) {
+      const rows = summaryPayload?.data || [];
+      populateRangeSelect(rangeSelect, buildRangeOptions(rows));
       renderHeatmap({
         statsCard,
         statsBarsWrap,
@@ -660,66 +648,93 @@ async function loadStats() {
         rows,
         rangeValue: rangeSelect.value,
       });
-    });
-
-    const sessionByDate = new Map((barsPayload.data?.sessions || []).map((row) => [row.date, row]));
-    const rpmByDate = new Map((barsPayload.data?.rpms || []).map((row) => [row.date, row]));
-    const windowDates = buildDateWindow(getBarDays());
-
-    function fillDateWindow(map, dates, defaultFn) {
-      return dates.map((date) => map.get(date) ?? defaultFn(date));
+      rangeSelect.addEventListener("change", () => {
+        renderHeatmap({
+          statsCard,
+          statsBarsWrap,
+          grid,
+          monthAxis,
+          weekdayAxis,
+          summary,
+          statsWrap,
+          rows,
+          rangeValue: rangeSelect.value,
+        });
+      });
     }
 
-    const sessionRows = fillDateWindow(sessionByDate, windowDates, (date) => ({
-      date,
-      first_sessions: 0,
-      completion_sessions: 0,
-      progression_sessions: 0,
-      first_completion_sessions: 0,
-    }));
+    if (hasSessionBars) {
+      const sessionByDate = new Map((barsPayload?.data?.sessions || []).map((row) => [row.date, row]));
+      const rpmByDate = new Map((barsPayload?.data?.rpms || []).map((row) => [row.date, row]));
+      const windowDates = buildDateWindow(getBarDays());
 
-    const rpmRows = fillDateWindow(rpmByDate, windowDates, (date) => ({
-      date,
-      first_sessions: 0,
-      delta_bins: [],
-    }));
+      function fillDateWindow(map, dates, defaultFn) {
+        return dates.map((date) => map.get(date) ?? defaultFn(date));
+      }
 
-    renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
-    renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
-    renderProgressBars(progressBars, progressYAxis, progressPayload.data || []);
-    renderHistogramBars(histDeltasBars, histDeltasYAxis, histPayload.data?.session_deltas || [], {
-      barClass: "bar-seg-hist-delta",
-      formatBucket: (bucket) => `+${bucket}`,
-      titlePrefix: "Delta ",
-      palette: ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af"],
-    });
-    renderHistogramBars(histSessionsBars, histSessionsYAxis, histPayload.data?.sessions_to_complete || [], {
-      barClass: "bar-seg-hist-sessions",
-      formatBucket: (bucket) => `${bucket}`,
-      titlePrefix: "Sessions ",
-      palette: ["#34d399", "#10b981", "#059669", "#047857", "#065f46"],
-    });
-    renderHistogramBars(histDaysBars, histDaysYAxis, histPayload.data?.days_to_complete || [], {
-      barClass: "bar-seg-hist-days",
-      formatBucket: (bucket) => `${bucket}`,
-      titlePrefix: "Days ",
-      palette: ["#f59e0b", "#f97316", "#ea580c", "#c2410c", "#9a3412"],
-    });
+      const sessionRows = fillDateWindow(sessionByDate, windowDates, (date) => ({
+        date,
+        first_sessions: 0,
+        completion_sessions: 0,
+        progression_sessions: 0,
+        first_completion_sessions: 0,
+      }));
+
+      const rpmRows = fillDateWindow(rpmByDate, windowDates, (date) => ({
+        date,
+        first_sessions: 0,
+        delta_bins: [],
+      }));
+
+      renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
+      renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
+    }
+
+    if (hasProgress) {
+      renderProgressBars(progressBars, progressYAxis, progressPayload?.data || []);
+    }
+    if (hasHistograms) {
+      renderHistogramBars(histDeltasBars, histDeltasYAxis, histPayload?.data?.session_deltas || [], {
+        barClass: "bar-seg-hist-delta",
+        formatBucket: (bucket) => `+${bucket}`,
+        titlePrefix: "Delta ",
+        palette: ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af"],
+      });
+      renderHistogramBars(histSessionsBars, histSessionsYAxis, histPayload?.data?.sessions_to_complete || [], {
+        barClass: "bar-seg-hist-sessions",
+        formatBucket: (bucket) => `${bucket}`,
+        titlePrefix: "Sessions ",
+        palette: ["#34d399", "#10b981", "#059669", "#047857", "#065f46"],
+      });
+      renderHistogramBars(histDaysBars, histDaysYAxis, histPayload?.data?.days_to_complete || [], {
+        barClass: "bar-seg-hist-days",
+        formatBucket: (bucket) => `${bucket}`,
+        titlePrefix: "Days ",
+        palette: ["#f59e0b", "#f97316", "#ea580c", "#c2410c", "#9a3412"],
+      });
+    }
   } catch (err) {
-    summary.textContent = err instanceof Error ? err.message : "Failed to load stats";
-    const errorPairs = [
-      [sessionsBars, sessionsYAxis],
-      [rpmBars, rpmYAxis],
-      [progressBars, progressYAxis],
-      [histDeltasBars, histDeltasYAxis],
-      [histSessionsBars, histSessionsYAxis],
-      [histDaysBars, histDaysYAxis],
-    ];
+    const message = err instanceof Error ? err.message : "Failed to load stats";
+    if (summary) {
+      summary.textContent = message;
+    }
+    if (pageError) {
+      pageError.textContent = message;
+    }
+    const errorPairs = [];
+    if (sessionsBars && sessionsYAxis) errorPairs.push([sessionsBars, sessionsYAxis]);
+    if (rpmBars && rpmYAxis) errorPairs.push([rpmBars, rpmYAxis]);
+    if (progressBars && progressYAxis) errorPairs.push([progressBars, progressYAxis]);
+    if (histDeltasBars && histDeltasYAxis) errorPairs.push([histDeltasBars, histDeltasYAxis]);
+    if (histSessionsBars && histSessionsYAxis) errorPairs.push([histSessionsBars, histSessionsYAxis]);
+    if (histDaysBars && histDaysYAxis) errorPairs.push([histDaysBars, histDaysYAxis]);
     for (const [bars, axis] of errorPairs) {
       bars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
       axis.textContent = "";
     }
-    rpmLegend.textContent = "";
+    if (rpmLegend) {
+      rpmLegend.textContent = "";
+    }
   }
 }
 
