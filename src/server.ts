@@ -5,6 +5,7 @@ import {
   createLick,
   getProgressDistribution,
   getArtists,
+  getStatsHistograms,
   getStatsBars,
   getStats,
   getLickMeta,
@@ -117,6 +118,10 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
 
   if (url.pathname === "/api/stats/bars" && req.method === "GET") {
     return json({ data: getStatsBars(db) });
+  }
+
+  if (url.pathname === "/api/stats/histograms" && req.method === "GET") {
+    return json({ data: getStatsHistograms(db) });
   }
 
   if (url.pathname === "/api/stats/progress" && req.method === "GET") {

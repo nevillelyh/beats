@@ -126,6 +126,11 @@ Provide `scripts/import_csv.py`:
       - Deltas chart uses weighted stack heights:
         - `first` contributes `+5` per first session
         - each bin contributes `delta_bin * session_count`
+- `GET /api/stats/histograms`
+  - Returns histogram data:
+    - `session_deltas` (absolute RPM deltas, bucketed by 5)
+    - `sessions_to_completion` (completed licks only)
+    - `days_to_completion` (completed licks only)
 - `GET /api/stats/progress`
   - Returns best-% distribution bins:
     - `bucket_pct` from `0..100` in `10%` steps
@@ -258,6 +263,11 @@ Each lick row has:
       - each delta bin = `delta_bin * session_count`
     - On mobile, display window is last `30` days.
   - `Progress`: best-% distribution bars (`0, 10, 20, ... 100`)
+  - Bottom histograms:
+    - `Session Deltas`
+    - `Sessions To Completion`
+    - `Days To Completion`
+    - All three render on the same row on wide screens.
   - Heatmap mobile behavior:
     - last `22` weeks
     - Y-axis labels use `M / W / F` (desktop remains `Mon / Wed / Fri`)

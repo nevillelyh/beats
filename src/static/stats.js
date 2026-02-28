@@ -269,6 +269,67 @@ function renderProgressBars(target, yAxis, rows) {
   target.appendChild(grid);
 }
 
+function renderHistogramBars(target, yAxis, rows, options = {}) {
+  const {
+    barClass = "bar-seg-hist",
+    formatBucket = (bucket) => String(bucket),
+    titlePrefix = "",
+    palette = [],
+  } = options;
+
+  target.textContent = "";
+  if (!rows.length) {
+    target.innerHTML = `<div class="muted">No data yet.</div>`;
+    yAxis.textContent = "";
+    return;
+  }
+
+  const maxCount = Math.max(1, ...rows.map((r) => r.count));
+  const scale = BARS_HEIGHT / maxCount;
+  renderYAxis(yAxis, maxCount, { targetTicks: 4, minStep: 1 });
+
+  const grid = document.createElement("div");
+  grid.className = "bars-grid";
+  grid.style.setProperty("--bars-count", String(rows.length));
+
+  const pickColor = (index) => {
+    if (palette.length > 0) {
+      return palette[index % palette.length];
+    }
+    const ratio = rows.length <= 1 ? 0.5 : index / (rows.length - 1);
+    const hue = 200 + Math.round(ratio * 50);
+    return `hsl(${hue} 72% 56%)`;
+  };
+
+  rows.forEach((row, index) => {
+    const col = document.createElement("div");
+    col.className = "bar-col";
+
+    const stack = document.createElement("div");
+    stack.className = "bar-stack";
+    stack.style.height = `${BARS_HEIGHT}px`;
+    stack.title = `${titlePrefix}${formatBucket(row.bucket)}: ${row.count}`;
+
+    if (row.count > 0) {
+      const seg = document.createElement("div");
+      seg.className = barClass;
+      seg.style.height = `${Math.round(row.count * scale)}px`;
+      seg.style.backgroundColor = pickColor(index);
+      stack.appendChild(seg);
+    }
+
+    const label = document.createElement("div");
+    label.className = "bar-day";
+    label.textContent = shouldShowLabel(index, rows.length) ? formatBucket(row.bucket) : "";
+
+    col.appendChild(stack);
+    col.appendChild(label);
+    grid.appendChild(col);
+  });
+
+  target.appendChild(grid);
+}
+
 function colorForDeltaBin(deltaBin, maxDeltaBin) {
   if (maxDeltaBin <= 5) {
     return "hsl(214 82% 60%)";
@@ -380,6 +441,12 @@ async function loadStats() {
   const rpmLegend = document.querySelector("#rpmLegend");
   const progressBars = document.querySelector("#progressBars");
   const progressYAxis = document.querySelector("#progressYAxis");
+  const histDeltasBars = document.querySelector("#histDeltasBars");
+  const histDeltasYAxis = document.querySelector("#histDeltasYAxis");
+  const histSessionsBars = document.querySelector("#histSessionsBars");
+  const histSessionsYAxis = document.querySelector("#histSessionsYAxis");
+  const histDaysBars = document.querySelector("#histDaysBars");
+  const histDaysYAxis = document.querySelector("#histDaysYAxis");
   if (
     !summary
     || !grid
@@ -392,6 +459,12 @@ async function loadStats() {
     || !rpmLegend
     || !progressBars
     || !progressYAxis
+    || !histDeltasBars
+    || !histDeltasYAxis
+    || !histSessionsBars
+    || !histSessionsYAxis
+    || !histDaysBars
+    || !histDaysYAxis
   ) {
     return;
   }
@@ -400,10 +473,11 @@ async function loadStats() {
     const headers = {
       "X-Local-Date": formatDate(new Date()),
     };
-    const [summaryResponse, barsResponse, progressResponse] = await Promise.all([
+    const [summaryResponse, barsResponse, progressResponse, histResponse] = await Promise.all([
       fetch("/api/stats", { headers }),
       fetch("/api/stats/bars", { headers }),
       fetch("/api/stats/progress", { headers }),
+      fetch("/api/stats/histograms", { headers }),
     ]);
     const summaryPayload = await summaryResponse.json();
     if (!summaryResponse.ok) {
@@ -416,6 +490,10 @@ async function loadStats() {
     const progressPayload = await progressResponse.json();
     if (!progressResponse.ok) {
       throw new Error(progressPayload.error || `Request failed: ${progressResponse.status}`);
+    }
+    const histPayload = await histResponse.json();
+    if (!histResponse.ok) {
+      throw new Error(histPayload.error || `Request failed: ${histResponse.status}`);
     }
 
     const rows = summaryPayload.data || [];
@@ -497,6 +575,24 @@ async function loadStats() {
     renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
     renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
     renderProgressBars(progressBars, progressYAxis, progressPayload.data || []);
+    renderHistogramBars(histDeltasBars, histDeltasYAxis, histPayload.data?.session_deltas || [], {
+      barClass: "bar-seg-hist-delta",
+      formatBucket: (bucket) => `+${bucket}`,
+      titlePrefix: "Delta ",
+      palette: ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af"],
+    });
+    renderHistogramBars(histSessionsBars, histSessionsYAxis, histPayload.data?.sessions_to_complete || [], {
+      barClass: "bar-seg-hist-sessions",
+      formatBucket: (bucket) => `${bucket}`,
+      titlePrefix: "Sessions ",
+      palette: ["#34d399", "#10b981", "#059669", "#047857", "#065f46"],
+    });
+    renderHistogramBars(histDaysBars, histDaysYAxis, histPayload.data?.days_to_complete || [], {
+      barClass: "bar-seg-hist-days",
+      formatBucket: (bucket) => `${bucket}`,
+      titlePrefix: "Days ",
+      palette: ["#f59e0b", "#f97316", "#ea580c", "#c2410c", "#9a3412"],
+    });
   } catch (err) {
     summary.textContent = err instanceof Error ? err.message : "Failed to load stats";
     sessionsBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
@@ -506,6 +602,12 @@ async function loadStats() {
     rpmLegend.textContent = "";
     progressBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
     progressYAxis.textContent = "";
+    histDeltasBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
+    histDeltasYAxis.textContent = "";
+    histSessionsBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
+    histSessionsYAxis.textContent = "";
+    histDaysBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
+    histDaysYAxis.textContent = "";
   }
 }
 

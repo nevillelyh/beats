@@ -6,6 +6,7 @@ import {
   createLick,
   getProgressDistribution,
   getArtists,
+  getStatsHistograms,
   getStatsBars,
   getStats,
   getLicks,
@@ -186,5 +187,37 @@ describe("db behavior", () => {
     }
     expect(getProgressDistribution(db)).toEqual(expected);
     expect(a).toBeGreaterThan(0);
+  });
+
+  test("stats histograms return deltas and complete-only completion metrics", () => {
+    const lickA = createLick(db, "Pat", "Line A", 100);
+    const lickB = createLick(db, "Pat", "Line B", 200);
+    const lickC = createLick(db, "Pat", "Line C", 100);
+
+    addSession(db, lickA, "2026-02-10", 40);
+    addSession(db, lickA, "2026-02-11", 70);   // +30
+    addSession(db, lickA, "2026-02-12", 105);  // +35 (complete on session 3, day 3)
+    addSession(db, lickA, "2026-02-13", 100);  // +5
+
+    addSession(db, lickB, "2026-02-11", 120);
+    addSession(db, lickB, "2026-02-12", 150);  // +30, incomplete lick
+
+    addSession(db, lickC, "2026-02-12", 110);  // complete on first session, day 1
+
+    expect(getStatsHistograms(db)).toEqual({
+      session_deltas: [
+        { bucket: 5, count: 1 },
+        { bucket: 30, count: 2 },
+        { bucket: 35, count: 1 },
+      ],
+      sessions_to_complete: [
+        { bucket: 1, count: 1 },
+        { bucket: 3, count: 1 },
+      ],
+      days_to_complete: [
+        { bucket: 1, count: 1 },
+        { bucket: 3, count: 1 },
+      ],
+    });
   });
 });

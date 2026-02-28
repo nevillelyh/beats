@@ -61,6 +61,17 @@ export type StatsBars = {
   rpms: StatsRpmBarsDay[];
 };
 
+export type StatsHistogramBin = {
+  bucket: number;
+  count: number;
+};
+
+export type StatsHistograms = {
+  session_deltas: StatsHistogramBin[];
+  sessions_to_complete: StatsHistogramBin[];
+  days_to_complete: StatsHistogramBin[];
+};
+
 export type StatsProgressBin = {
   bucket_pct: number;
   lick_count: number;
@@ -533,6 +544,94 @@ export function getProgressDistribution(db: Database): StatsProgressBin[] {
     });
   }
   return output;
+}
+
+function incrementBucket(map: Map<number, number>, bucket: number): void {
+  map.set(bucket, (map.get(bucket) ?? 0) + 1);
+}
+
+function toSortedBins(map: Map<number, number>): StatsHistogramBin[] {
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([bucket, count]) => ({ bucket, count }));
+}
+
+function diffDaysUtc(start: string, end: string): number {
+  const startMs = Date.parse(`${start}T00:00:00Z`);
+  const endMs = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    return 0;
+  }
+  return Math.floor((endMs - startMs) / 86400000);
+}
+
+export function getStatsHistograms(db: Database): StatsHistograms {
+  const rows = db
+    .query(
+      `SELECT
+         s.id,
+         s.lick_id,
+         s.date,
+         s.rpm,
+         l.goal_rpm
+       FROM sessions s
+       JOIN licks l ON l.id = s.lick_id
+       ORDER BY s.lick_id ASC, s.date ASC, s.id ASC`,
+    )
+    .all() as Array<{
+    id: number;
+    lick_id: number;
+    date: string;
+    rpm: number;
+    goal_rpm: number;
+  }>;
+
+  const deltaCounts = new Map<number, number>();
+  const sessionsToCompleteCounts = new Map<number, number>();
+  const daysToCompleteCounts = new Map<number, number>();
+  const lickState = new Map<number, {
+    goal_rpm: number;
+    prev_rpm: number | null;
+    first_date: string | null;
+    session_count: number;
+    completed: boolean;
+  }>();
+
+  for (const row of rows) {
+    const state = lickState.get(row.lick_id) ?? {
+      goal_rpm: row.goal_rpm,
+      prev_rpm: null,
+      first_date: null,
+      session_count: 0,
+      completed: false,
+    };
+    state.session_count += 1;
+    if (state.first_date === null) {
+      state.first_date = row.date;
+    }
+
+    if (state.prev_rpm !== null) {
+      const delta = Math.abs(row.rpm - state.prev_rpm);
+      const bucket = Math.max(5, Math.ceil(Math.max(delta, 1) / 5) * 5);
+      incrementBucket(deltaCounts, bucket);
+    }
+
+    if (!state.completed && row.rpm >= state.goal_rpm) {
+      state.completed = true;
+      incrementBucket(sessionsToCompleteCounts, state.session_count);
+      const days = Math.max(1, diffDaysUtc(state.first_date!, row.date) + 1);
+      incrementBucket(daysToCompleteCounts, days);
+    }
+
+    state.prev_rpm = row.rpm;
+    lickState.set(row.lick_id, state);
+  }
+
+  return {
+    session_deltas: toSortedBins(deltaCounts),
+    sessions_to_complete: toSortedBins(sessionsToCompleteCounts),
+    days_to_complete: toSortedBins(daysToCompleteCounts),
+  };
 }
 
 export function normalizeLocalDate(value: string | null | undefined): string {
