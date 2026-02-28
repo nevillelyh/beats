@@ -1,11 +1,15 @@
-# RPM Tracker
+# RPMs
 
-Single-page RPM tracker for music practice sessions.
+RPM tracker for music practice sessions with three pages:
+
+- `Tracker` (`/`)
+- `Trends` (`/trends.html`)
+- `Stats` (`/stats.html`)
 
 ## Stack
 
 - Bun (TypeScript server + SQLite)
-- Lit + Shoelace (frontend)
+- Lit (via CDN) + custom CSS (frontend)
 - Python CSV importer
 
 ## Local Run

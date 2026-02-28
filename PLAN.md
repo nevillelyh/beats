@@ -181,7 +181,7 @@ Row below artist filter with icon chips and metrics:
 
 - `New` chip: count of licks with `0` sessions.
 - `In progress` chip: count of licks with `> 0` sessions and `% < 100`.
-- `Done` chip: count of licks with `% = 100`.
+- `Done` chip: count of licks with `% >= 100`.
 - `Average %`: mean `%` across licks with `> 0` sessions.
 - Clicking `New`, `In progress`, or `Done` applies that filter.
 - Clicking the currently active chip again clears back to `all`.
