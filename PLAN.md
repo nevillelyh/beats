@@ -15,7 +15,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-8. Use 3 top-level tabs: `Licks` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
+8. Use 3 top-level tabs: `Tracker` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
 
 ## Tech Stack
 
@@ -246,9 +246,10 @@ Each lick row has:
 ### Trends and Stats pages
 
 - Global tab navigation is shown next to the `RPMs` title:
-  - `Licks` (`/`)
+  - `Tracker` (`/`)
   - `Trends` (`/trends.html`)
   - `Stats` (`/stats.html`)
+- Main page title is `RPMs - Tracker`.
 - `Trends` page (`RPMs - Trends`) renders:
   - GitHub-style heatmap with month/day axes
   - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)

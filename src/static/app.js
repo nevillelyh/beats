@@ -563,7 +563,7 @@ class RpmApp extends LitElement {
           <div class="title-row">
             <h1 class="title">RPMs</h1>
             <div class="page-tabs">
-              <a class="btn btn-small btn-primary" href="/">Licks</a>
+              <a class="btn btn-small btn-primary" href="/">Tracker</a>
               <a class="btn btn-small" href="/trends.html">Trends</a>
               <a class="btn btn-small" href="/stats.html">Stats</a>
             </div>
