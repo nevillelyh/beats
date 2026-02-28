@@ -254,13 +254,16 @@ Each lick row has:
   - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)
     - `First+Completion` is for sessions that are both first and completion.
     - Stack order: `First` (bottom), `Progression`, `Completion`, `First+Completion` (top).
-    - On mobile, display window is last `30` days.
   - `Deltas`: stacked daily bars with `First` at the bottom, then absolute RPM-change bins (`+5`, `+10`, ...)
     - Legend shows one trailing unit label (`RPM`) instead of repeating units per bin
     - Stack segment heights are weighted by total RPM change (not raw count):
       - `First` = `first_sessions * 5`
       - each delta bin = `delta_bin * session_count`
-    - On mobile, display window is last `30` days.
+  - Sessions/Deltas range controls:
+    - horizontal range-button selectors inside both cards
+    - options: `1M`, `3M`, `6M`, `1Y`, `2Y`, `YTD`, `All Time` (default `1M`)
+    - selectors are synced: changing one applies to both charts
+    - x-axis labels include month and day (`M/D`)
   - On wide desktop screens, the heatmap card uses fixed chart-width sizing (not full-width stretch).
   - Heatmap range/viewport behavior:
     - default range is rolling `Last Year` (`52` weeks, ending this week) on all viewports

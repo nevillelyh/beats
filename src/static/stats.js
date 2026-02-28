@@ -1,14 +1,17 @@
 const HEATMAP_DEFAULT_WEEKS = 52;
 const BARS_HEIGHT = 180;
-const DESKTOP_BAR_DAYS = 50;
-const MOBILE_BAR_DAYS = 30;
+const BARS_RANGE_OPTIONS = [
+  { value: "1M", label: "1M" },
+  { value: "3M", label: "3M" },
+  { value: "6M", label: "6M" },
+  { value: "1Y", label: "1Y" },
+  { value: "2Y", label: "2Y" },
+  { value: "YTD", label: "YTD" },
+  { value: "ALL", label: "All Time" },
+];
 
 function isMobileViewport() {
   return window.matchMedia("(max-width: 480px)").matches;
-}
-
-function getBarDays() {
-  return isMobileViewport() ? MOBILE_BAR_DAYS : DESKTOP_BAR_DAYS;
 }
 
 function formatDate(date) {
@@ -237,8 +240,10 @@ function renderHeatmap({
   }
 }
 
-function shortDay(date) {
-  return date.slice(8);
+function shortDateLabel(date) {
+  const month = Number(date.slice(5, 7));
+  const day = Number(date.slice(8, 10));
+  return `${month}/${day}`;
 }
 
 function shouldShowLabel(index, total) {
@@ -259,6 +264,44 @@ function buildDateWindow(totalDays) {
     dates.push(formatDate(d));
   }
   return dates;
+}
+
+function buildBarsDateWindow(rangeValue, earliestDate) {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  let start = new Date(today);
+  switch (rangeValue) {
+    case "3M":
+      start.setDate(today.getDate() - 89);
+      break;
+    case "6M":
+      start.setDate(today.getDate() - 179);
+      break;
+    case "1Y":
+      start.setDate(today.getDate() - 364);
+      break;
+    case "2Y":
+      start.setDate(today.getDate() - 729);
+      break;
+    case "YTD":
+      start = new Date(today.getFullYear(), 0, 1, 12, 0, 0, 0);
+      break;
+    case "ALL":
+      if (earliestDate) {
+        const [y, m, d] = earliestDate.split("-").map(Number);
+        start = new Date(y, m - 1, d, 12, 0, 0, 0);
+      }
+      break;
+    case "1M":
+    default:
+      start.setDate(today.getDate() - 29);
+      break;
+  }
+  const totalDays = Math.max(
+    1,
+    Math.round((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1,
+  );
+  return buildDateWindow(totalDays);
 }
 
 function chooseNiceStep(maxValue, targetTicks, minStep = 1) {
@@ -344,7 +387,7 @@ function renderSessionsBars(target, yAxis, rows) {
 
     const label = document.createElement("div");
     label.className = "bar-day";
-    label.textContent = shouldShowLabel(index, rows.length) ? shortDay(row.date) : "";
+    label.textContent = shouldShowLabel(index, rows.length) ? shortDateLabel(row.date) : "";
 
     col.appendChild(stack);
     col.appendChild(label);
@@ -554,7 +597,7 @@ function renderRpmBars(target, yAxis, legend, rows) {
 
     const label = document.createElement("div");
     label.className = "bar-day";
-    label.textContent = shouldShowLabel(index, rows.length) ? shortDay(row.date) : "";
+    label.textContent = shouldShowLabel(index, rows.length) ? shortDateLabel(row.date) : "";
 
     col.appendChild(stack);
     col.appendChild(label);
@@ -579,6 +622,8 @@ async function loadStats() {
   const rpmBars = document.querySelector("#rpmBars");
   const rpmYAxis = document.querySelector("#rpmYAxis");
   const rpmLegend = document.querySelector("#rpmLegend");
+  const sessionsRangeButtons = document.querySelector("#sessionsRangeButtons");
+  const rpmRangeButtons = document.querySelector("#rpmRangeButtons");
   const progressBars = document.querySelector("#progressBars");
   const progressYAxis = document.querySelector("#progressYAxis");
   const histDeltasBars = document.querySelector("#histDeltasBars");
@@ -601,7 +646,9 @@ async function loadStats() {
       && sessionsYAxis
       && rpmBars
       && rpmYAxis
-      && rpmLegend,
+      && rpmLegend
+      && sessionsRangeButtons
+      && rpmRangeButtons,
   );
   const hasProgress = Boolean(progressBars && progressYAxis);
   const hasHistograms = Boolean(
@@ -666,28 +713,45 @@ async function loadStats() {
     if (hasSessionBars) {
       const sessionByDate = new Map((barsPayload?.data?.sessions || []).map((row) => [row.date, row]));
       const rpmByDate = new Map((barsPayload?.data?.rpms || []).map((row) => [row.date, row]));
-      const windowDates = buildDateWindow(getBarDays());
+      const earliestSessionDate = [...sessionByDate.keys(), ...rpmByDate.keys()].sort()[0] || null;
 
       function fillDateWindow(map, dates, defaultFn) {
         return dates.map((date) => map.get(date) ?? defaultFn(date));
       }
 
-      const sessionRows = fillDateWindow(sessionByDate, windowDates, (date) => ({
-        date,
-        first_sessions: 0,
-        completion_sessions: 0,
-        progression_sessions: 0,
-        first_completion_sessions: 0,
-      }));
-
-      const rpmRows = fillDateWindow(rpmByDate, windowDates, (date) => ({
-        date,
-        first_sessions: 0,
-        delta_bins: [],
-      }));
-
-      renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
-      renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
+      let activeBarsRange = "1M";
+      const renderBarsRange = () => {
+        const windowDates = buildBarsDateWindow(activeBarsRange, earliestSessionDate);
+        const sessionRows = fillDateWindow(sessionByDate, windowDates, (date) => ({
+          date,
+          first_sessions: 0,
+          completion_sessions: 0,
+          progression_sessions: 0,
+          first_completion_sessions: 0,
+        }));
+        const rpmRows = fillDateWindow(rpmByDate, windowDates, (date) => ({
+          date,
+          first_sessions: 0,
+          delta_bins: [],
+        }));
+        renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
+        renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
+        renderRangeButtons(sessionsRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, (nextValue) => {
+          if (nextValue === activeBarsRange) {
+            return;
+          }
+          activeBarsRange = nextValue;
+          renderBarsRange();
+        });
+        renderRangeButtons(rpmRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, (nextValue) => {
+          if (nextValue === activeBarsRange) {
+            return;
+          }
+          activeBarsRange = nextValue;
+          renderBarsRange();
+        });
+      };
+      renderBarsRange();
     }
 
     if (hasProgress) {
