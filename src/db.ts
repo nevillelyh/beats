@@ -402,8 +402,16 @@ export function getStats(db: Database): StatsDay[] {
     .all() as StatsDay[];
 }
 
-export function getStatsBars(db: Database): StatsBars {
-  const rows = db
+type SessionRow = {
+  id: number;
+  lick_id: number;
+  date: string;
+  rpm: number;
+  goal_rpm: number;
+};
+
+function querySessionRows(db: Database): SessionRow[] {
+  return db
     .query(
       `SELECT
          s.id,
@@ -415,13 +423,11 @@ export function getStatsBars(db: Database): StatsBars {
        JOIN licks l ON l.id = s.lick_id
        ORDER BY s.lick_id ASC, s.date ASC, s.id ASC`,
     )
-    .all() as Array<{
-    id: number;
-    lick_id: number;
-    date: string;
-    rpm: number;
-    goal_rpm: number;
-  }>;
+    .all() as SessionRow[];
+}
+
+export function getStatsBars(db: Database): StatsBars {
+  const rows = querySessionRows(db);
 
   const sessionsByDate = new Map<string, StatsSessionBarsDay>();
   const progressByDate = new Map<string, number[]>();
@@ -566,25 +572,7 @@ function diffDaysUtc(start: string, end: string): number {
 }
 
 export function getStatsHistograms(db: Database): StatsHistograms {
-  const rows = db
-    .query(
-      `SELECT
-         s.id,
-         s.lick_id,
-         s.date,
-         s.rpm,
-         l.goal_rpm
-       FROM sessions s
-       JOIN licks l ON l.id = s.lick_id
-       ORDER BY s.lick_id ASC, s.date ASC, s.id ASC`,
-    )
-    .all() as Array<{
-    id: number;
-    lick_id: number;
-    date: string;
-    rpm: number;
-    goal_rpm: number;
-  }>;
+  const rows = querySessionRows(db);
 
   const deltaCounts = new Map<number, number>();
   const sessionsToCompleteCounts = new Map<number, number>();
@@ -634,9 +622,17 @@ export function getStatsHistograms(db: Database): StatsHistograms {
   };
 }
 
+export function formatLocalDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function normalizeLocalDate(value: string | null | undefined): string {
   if (!value) {
-    return new Date().toLocaleDateString("en-CA");
+    return formatLocalDate();
   }
   const trimmed = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {

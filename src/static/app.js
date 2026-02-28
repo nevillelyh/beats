@@ -32,7 +32,7 @@ class RpmApp extends LitElement {
     this.licks = [];
     this.filterArtistId = "";
     this.sortBy = "artist";
-    this.sortDir = this.defaultMainSortDir("artist");
+    this.sortDir = "asc";
     this.loading = false;
     this.error = "";
     this.activeLick = null;
@@ -57,10 +57,6 @@ class RpmApp extends LitElement {
     };
   }
 
-  defaultMainSortDir(sortBy) {
-    return "asc";
-  }
-
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener("resize", this._onResize);
@@ -78,7 +74,7 @@ class RpmApp extends LitElement {
   applyUrlState(params) {
     const validSort = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
     const validDir = new Set(["asc", "desc"]);
-    const validProgress = new Set(["all", "new", "progress", "done", "todo"]);
+    const validProgress = new Set(["all", "new", "progress", "done"]);
 
     const sortBy = params.get("sort");
     const sortDir = params.get("dir");
@@ -95,7 +91,7 @@ class RpmApp extends LitElement {
       this.filterArtistId = artist;
     }
     if (progress && validProgress.has(progress)) {
-      this.progressFilter = progress === "todo" ? "progress" : progress;
+      this.progressFilter = progress;
     }
 
   }
@@ -108,7 +104,7 @@ class RpmApp extends LitElement {
     if (this.sortBy !== "artist") {
       params.set("sort", this.sortBy);
     }
-    if (this.sortDir !== this.defaultMainSortDir(this.sortBy)) {
+    if (this.sortDir !== "asc") {
       params.set("dir", this.sortDir);
     }
     if (this.progressFilter !== "all") {
@@ -120,7 +116,11 @@ class RpmApp extends LitElement {
   }
 
   localDate() {
-    return new Date().toLocaleDateString("en-CA");
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
   }
 
   el(id) {
@@ -132,11 +132,7 @@ class RpmApp extends LitElement {
     if (!dialog) {
       return;
     }
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
-      return;
-    }
-    dialog.setAttribute("open", "open");
+    dialog.showModal();
   }
 
   closeDialog(id) {
@@ -144,11 +140,7 @@ class RpmApp extends LitElement {
     if (!dialog) {
       return;
     }
-    if (typeof dialog.close === "function") {
-      dialog.close();
-      return;
-    }
-    dialog.removeAttribute("open");
+    dialog.close();
   }
 
   async api(path, options = {}) {
@@ -210,7 +202,7 @@ class RpmApp extends LitElement {
       this.sortDir = this.sortDir === "asc" ? "desc" : "asc";
     } else {
       this.sortBy = col;
-      this.sortDir = this.defaultMainSortDir(col);
+      this.sortDir = "asc";
     }
     this.syncUrlState();
     this.reloadLicks();
@@ -267,13 +259,12 @@ class RpmApp extends LitElement {
 
   openAddSession(lick) {
     this.activeLick = lick;
-    const best = lick.best_rpm || 0;
     const min = lick.best_rpm === null ? 1 : lick.best_rpm + 1;
     const max = lick.goal_rpm;
     const suggested =
       lick.best_rpm === null
         ? Math.ceil((lick.goal_rpm / 2) / 10) * 10
-        : Math.floor(best / 5) * 5 + 5;
+        : Math.floor(lick.best_rpm / 5) * 5 + 5;
     this.addMin = min;
     this.addMax = max;
     this.addValue = Math.max(min, Math.min(max, suggested));
@@ -304,21 +295,32 @@ class RpmApp extends LitElement {
     return "";
   }
 
-  updateGoalValue(event) {
-    const raw = Number(event.target.value || 0);
-    const clamped = Math.max(1, raw);
-    event.target.value = String(clamped);
+  _updateGoalInput(elementId, minGoal) {
+    const input = this.el(elementId);
+    if (!input) {
+      return;
+    }
+    const raw = Number(input.value || 0);
+    input.value = String(Math.max(minGoal, raw));
   }
 
-  adjustGoalValue(delta) {
-    const input = this.el("goalRpm");
+  _adjustGoalInput(elementId, minGoal, delta) {
+    const input = this.el(elementId);
     if (!input) {
       return;
     }
     const current = Number(input.value || 0);
-    const base = Number.isFinite(current) && current > 0 ? current : 0;
-    const next = Math.max(1, base + delta);
+    const base = Number.isFinite(current) && current > 0 ? current : minGoal;
+    const next = Math.max(minGoal, base + delta);
     input.value = String(next);
+  }
+
+  updateGoalValue() {
+    this._updateGoalInput("goalRpm", 1);
+  }
+
+  adjustGoalValue(delta) {
+    this._adjustGoalInput("goalRpm", 1, delta);
   }
 
   async submitAddSession() {
@@ -340,11 +342,6 @@ class RpmApp extends LitElement {
     } catch (err) {
       this.error = err.message;
     }
-  }
-
-  onSubmitAddSession(event) {
-    event.preventDefault();
-    this.submitAddSession();
   }
 
   async submitAddLick() {
@@ -373,11 +370,6 @@ class RpmApp extends LitElement {
     }
   }
 
-  onSubmitAddLick(event) {
-    event.preventDefault();
-    this.submitAddLick();
-  }
-
   openEditLickDialog(lick) {
     this.editLick = lick;
     const nameInput = this.el("editLickName");
@@ -395,35 +387,16 @@ class RpmApp extends LitElement {
     this.openDialog("editLickDialog");
   }
 
-  updateEditGoalValue(event) {
-    const raw = Number(event.target.value || 0);
-    const minGoal = this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1);
-    const clamped = Math.max(minGoal, raw);
-    event.target.value = String(clamped);
+  _editGoalMin() {
+    return this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1);
+  }
+
+  updateEditGoalValue() {
+    this._updateGoalInput("editGoalRpm", this._editGoalMin());
   }
 
   adjustEditGoalValue(delta) {
-    const input = this.el("editGoalRpm");
-    if (!input) {
-      return;
-    }
-    const minGoal = this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1);
-    const current = Number(input.value || 0);
-    const base = Number.isFinite(current) && current > 0 ? current : minGoal;
-    const next = Math.max(minGoal, base + delta);
-    input.value = String(next);
-  }
-
-  onEditGoalInputKeydown(event) {
-    if (event.key === "ArrowUp" || event.key === "+" || event.key === "=" || event.key === "NumpadAdd") {
-      event.preventDefault();
-      this.adjustEditGoalValue(5);
-      return;
-    }
-    if (event.key === "ArrowDown" || event.key === "-" || event.key === "NumpadSubtract") {
-      event.preventDefault();
-      this.adjustEditGoalValue(-5);
-    }
+    this._adjustGoalInput("editGoalRpm", this._editGoalMin(), delta);
   }
 
   async submitEditLick() {
@@ -444,11 +417,6 @@ class RpmApp extends LitElement {
     } catch (err) {
       this.error = err.message;
     }
-  }
-
-  onSubmitEditLick(event) {
-    event.preventDefault();
-    this.submitEditLick();
   }
 
   openAddLickDialog() {
@@ -499,11 +467,6 @@ class RpmApp extends LitElement {
     }
   }
 
-  onSubmitAddArtist(event) {
-    event.preventDefault();
-    this.submitAddArtist();
-  }
-
   async submitEditArtist() {
     if (!this.filterArtistId) {
       this.error = "Select an artist first";
@@ -522,36 +485,21 @@ class RpmApp extends LitElement {
     }
   }
 
-  onSubmitEditArtist(event) {
-    event.preventDefault();
-    this.submitEditArtist();
-  }
-
-  onAddSessionInputKeydown(event) {
-    if (this.addMin > this.addMax) {
-      return;
-    }
-    if (event.key === "ArrowUp" || event.key === "+" || event.key === "=" || event.key === "NumpadAdd") {
-      event.preventDefault();
-      this.adjustAddValue(5);
-      return;
-    }
-    if (event.key === "ArrowDown" || event.key === "-" || event.key === "NumpadSubtract") {
-      event.preventDefault();
-      this.adjustAddValue(-5);
-    }
-  }
-
-  onGoalInputKeydown(event) {
-    if (event.key === "ArrowUp" || event.key === "+" || event.key === "=" || event.key === "NumpadAdd") {
-      event.preventDefault();
-      this.adjustGoalValue(5);
-      return;
-    }
-    if (event.key === "ArrowDown" || event.key === "-" || event.key === "NumpadSubtract") {
-      event.preventDefault();
-      this.adjustGoalValue(-5);
-    }
+  _stepperKeydown(adjustFn, guard) {
+    return (event) => {
+      if (guard && guard.call(this)) {
+        return;
+      }
+      if (["ArrowUp", "+", "=", "NumpadAdd"].includes(event.key)) {
+        event.preventDefault();
+        adjustFn.call(this, 5);
+        return;
+      }
+      if (["ArrowDown", "-", "NumpadSubtract"].includes(event.key)) {
+        event.preventDefault();
+        adjustFn.call(this, -5);
+      }
+    };
   }
 
   fmt(value) {
@@ -563,10 +511,6 @@ class RpmApp extends LitElement {
       return html`<a class="lick-link" href=${row.lick_url} target="_blank" rel="noopener noreferrer">${row.lick_name}</a>`;
     }
     return html`${row.lick_name}`;
-  }
-
-  renderLickCell(row) {
-    return html`${this.renderLickName(row)}`;
   }
 
   header(label, key) {
@@ -592,7 +536,7 @@ class RpmApp extends LitElement {
     const inProgressCount = this.licks.filter(
       (row) => row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100,
     ).length;
-    const doneCount = this.licks.filter((row) => row.pct_of_goal === 100).length;
+    const doneCount = this.licks.filter((row) => row.pct_of_goal !== null && row.pct_of_goal >= 100).length;
     const startedPcts = this.licks
       .filter((row) => row.session_count > 0 && row.pct_of_goal !== null)
       .map((row) => row.pct_of_goal);
@@ -610,7 +554,7 @@ class RpmApp extends LitElement {
       if (this.progressFilter === "progress") {
         return row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100;
       }
-      return row.pct_of_goal === 100;
+      return row.pct_of_goal !== null && row.pct_of_goal >= 100;
     });
 
     return html`
@@ -712,7 +656,7 @@ class RpmApp extends LitElement {
                                   <div class="compact-top">
                                     <div>
                                       <div class="muted">${row.artist_name}</div>
-                                      <div><strong>${this.renderLickCell(row)}</strong></div>
+                                      <div><strong>${this.renderLickName(row)}</strong></div>
                                     </div>
                                     <div class="actions">
                                       <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
@@ -778,7 +722,7 @@ class RpmApp extends LitElement {
                             (row) => html`
                               <tr>
                                 <td>${row.artist_name}</td>
-                                <td class="lick-cell">${this.renderLickCell(row)}</td>
+                                <td class="lick-cell">${this.renderLickName(row)}</td>
                                 <td>${row.goal_rpm}</td>
                                 <td>
                                   <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>
@@ -840,7 +784,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="addSessionDialog" class="modal">
-        <form @submit=${this.onSubmitAddSession}>
+        <form @submit=${(e) => { e.preventDefault(); this.submitAddSession(); }}>
           <h3>Add Session</h3>
           <div class="range-grid">
             <div class="muted">
@@ -864,7 +808,7 @@ class RpmApp extends LitElement {
                 .value=${String(this.addValue)}
                 ?disabled=${addDisabledByRange}
                 @input=${this.updateAddValue}
-                @keydown=${this.onAddSessionInputKeydown}
+                @keydown=${this._stepperKeydown(this.adjustAddValue, function () { return this.addMin > this.addMax; })}
               />
               <button type="button" class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue >= this.addMax} @click=${() => this.adjustAddValue(5)}>
                 +
@@ -879,7 +823,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="addLickDialog" class="modal">
-        <form @submit=${this.onSubmitAddLick}>
+        <form @submit=${(e) => { e.preventDefault(); this.submitAddLick(); }}>
           <h3>Add Lick</h3>
           <div class="range-grid">
             <div class="muted">
@@ -900,7 +844,7 @@ class RpmApp extends LitElement {
                 min="0"
                 step="5"
                 @input=${this.updateGoalValue}
-                @keydown=${this.onGoalInputKeydown}
+                @keydown=${this._stepperKeydown(this.adjustGoalValue)}
               />
               <button type="button" class="btn btn-step" @click=${() => this.adjustGoalValue(5)}>+</button>
             </div>
@@ -913,7 +857,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="addArtistDialog" class="modal">
-        <form @submit=${this.onSubmitAddArtist}>
+        <form @submit=${(e) => { e.preventDefault(); this.submitAddArtist(); }}>
           <h3>Add Artist</h3>
           <div class="range-grid">
             <label for="newArtistName">Artist</label>
@@ -927,7 +871,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="editArtistDialog" class="modal">
-        <form @submit=${this.onSubmitEditArtist}>
+        <form @submit=${(e) => { e.preventDefault(); this.submitEditArtist(); }}>
           <h3>Edit Artist</h3>
           <div class="range-grid">
             <label for="editArtistName">Artist</label>
@@ -941,7 +885,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="editLickDialog" class="modal">
-        <form @submit=${this.onSubmitEditLick}>
+        <form @submit=${(e) => { e.preventDefault(); this.submitEditLick(); }}>
           <h3>Edit Lick</h3>
           <div class="range-grid">
             <div class="muted">
@@ -962,7 +906,7 @@ class RpmApp extends LitElement {
                 min=${this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1)}
                 step="5"
                 @input=${this.updateEditGoalValue}
-                @keydown=${this.onEditGoalInputKeydown}
+                @keydown=${this._stepperKeydown(this.adjustEditGoalValue)}
               />
               <button type="button" class="btn btn-step" @click=${() => this.adjustEditGoalValue(5)}>+</button>
             </div>

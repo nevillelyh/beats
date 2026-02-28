@@ -36,23 +36,36 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function parseIntParam(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-  const n = Number(value);
-  if (!Number.isInteger(n)) {
-    throw new Error("Expected integer parameter");
-  }
-  return n;
-}
-
 function badRequest(message: string): Response {
   return json({ error: message }, 400);
 }
 
 function notFound(message: string): Response {
   return json({ error: message }, 404);
+}
+
+function handleDbError(err: unknown, uniqueMsg: string): Response {
+  const message = (err as Error).message;
+  if (message.includes("UNIQUE constraint failed")) return badRequest(uniqueMsg);
+  if (message.includes("not found")) return notFound(message);
+  return badRequest(message);
+}
+
+function parseRouteId(match: RegExpMatchArray): number {
+  const n = Number(match[1]);
+  if (!Number.isInteger(n) || n <= 0) throw new Error("Invalid ID");
+  return n;
+}
+
+function parseOptionalPositiveIntParam(value: string | null, name: string): number | null {
+  if (value === null) {
+    return null;
+  }
+  const n = Number(value);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return n;
 }
 
 async function handleApi(req: Request, url: URL): Promise<Response | null> {
@@ -69,18 +82,14 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const id = createArtist(db, body.artistName);
       return json({ id }, 201);
     } catch (err) {
-      const message = (err as Error).message;
-      if (message.includes("UNIQUE constraint failed")) {
-        return badRequest("Artist already exists");
-      }
-      return badRequest(message);
+      return handleDbError(err, "Artist already exists");
     }
   }
 
   const artistMatch = url.pathname.match(/^\/api\/artists\/(\d+)$/);
   if (artistMatch && req.method === "PATCH") {
     try {
-      const artistId = Number(artistMatch[1]);
+      const artistId = parseRouteId(artistMatch);
       const body = (await req.json()) as { artistName?: string };
       if (!body.artistName) {
         return badRequest("artistName is required");
@@ -88,20 +97,13 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       updateArtist(db, artistId, body.artistName);
       return json({ ok: true });
     } catch (err) {
-      const message = (err as Error).message;
-      if (message.includes("UNIQUE constraint failed")) {
-        return badRequest("Artist already exists");
-      }
-      if (message === "Artist not found") {
-        return notFound(message);
-      }
-      return badRequest(message);
+      return handleDbError(err, "Artist already exists");
     }
   }
 
   if (url.pathname === "/api/licks" && req.method === "GET") {
     try {
-      const artistId = parseIntParam(url.searchParams.get("artist_id"));
+      const artistId = parseOptionalPositiveIntParam(url.searchParams.get("artist_id"), "artist_id");
       const sortBy = url.searchParams.get("sort_by") || "artist";
       const sortDir = url.searchParams.get("sort_dir") || "asc";
       const localDate = normalizeLocalDate(req.headers.get("x-local-date"));
@@ -142,18 +144,14 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const id = createLick(db, body.artistName, body.lickName, body.goalRpm, body.url);
       return json({ id }, 201);
     } catch (err) {
-      const message = (err as Error).message;
-      if (message.includes("UNIQUE constraint failed")) {
-        return badRequest("Lick already exists for this artist");
-      }
-      return badRequest(message);
+      return handleDbError(err, "Lick already exists for this artist");
     }
   }
 
   const lickMatch = url.pathname.match(/^\/api\/licks\/(\d+)$/);
   if (lickMatch && req.method === "PATCH") {
     try {
-      const lickId = Number(lickMatch[1]);
+      const lickId = parseRouteId(lickMatch);
       const body = (await req.json()) as {
         lickName?: string;
         goalRpm?: number;
@@ -165,21 +163,14 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       updateLick(db, lickId, body.lickName, body.goalRpm, body.url);
       return json({ ok: true });
     } catch (err) {
-      const message = (err as Error).message;
-      if (message.includes("UNIQUE constraint failed")) {
-        return badRequest("Lick already exists for this artist");
-      }
-      if (message === "Lick not found") {
-        return notFound(message);
-      }
-      return badRequest(message);
+      return handleDbError(err, "Lick already exists for this artist");
     }
   }
 
   const sessionListMatch = url.pathname.match(/^\/api\/licks\/(\d+)\/sessions$/);
   if (sessionListMatch && req.method === "GET") {
     try {
-      const lickId = Number(sessionListMatch[1]);
+      const lickId = parseRouteId(sessionListMatch);
       const sortBy = url.searchParams.get("sort_by") || "date";
       const sortDir = url.searchParams.get("sort_dir") || "desc";
       const rows = getSessions(db, lickId, sortBy, sortDir);
@@ -191,7 +182,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
 
   if (sessionListMatch && req.method === "POST") {
     try {
-      const lickId = Number(sessionListMatch[1]);
+      const lickId = parseRouteId(sessionListMatch);
       const body = (await req.json()) as { rpm?: number };
       const rpm = body.rpm;
       if (!Number.isInteger(rpm) || rpm <= 0) {

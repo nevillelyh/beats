@@ -12,6 +12,7 @@ import {
   getLicks,
   getSessionRpmRange,
   hasSessionForDate,
+  initSchema,
   openDb,
   updateArtist,
   updateLick,
@@ -21,28 +22,7 @@ let db: Database;
 
 beforeEach(() => {
   db = openDb(":memory:");
-  db.exec(`
-    PRAGMA foreign_keys = ON;
-    CREATE TABLE artists (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE
-    );
-    CREATE TABLE licks (
-      id INTEGER PRIMARY KEY,
-      artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      url TEXT,
-      goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0),
-      UNIQUE(artist_id, name)
-    );
-    CREATE TABLE sessions (
-      id INTEGER PRIMARY KEY,
-      lick_id INTEGER NOT NULL REFERENCES licks(id) ON DELETE CASCADE,
-      date TEXT NOT NULL,
-      rpm INTEGER NOT NULL CHECK(rpm > 0),
-      UNIQUE(lick_id, date)
-    );
-  `);
+  initSchema(db);
 });
 
 describe("db behavior", () => {
@@ -171,7 +151,7 @@ describe("db behavior", () => {
   });
 
   test("best % distribution returns 0..100 bins in steps of 10", () => {
-    const a = createLick(db, "Pat", "A", 100); // no sessions -> 0
+    createLick(db, "Pat", "A", 100); // no sessions -> 0
     const b = createLick(db, "Pat", "B", 100); // 23 -> 20
     const c = createLick(db, "Pat", "C", 100); // 68 -> 60
     const d = createLick(db, "Pat", "D", 100); // 100 -> 100
@@ -186,7 +166,6 @@ describe("db behavior", () => {
       expected.push({ bucket_pct: bucket, lick_count });
     }
     expect(getProgressDistribution(db)).toEqual(expected);
-    expect(a).toBeGreaterThan(0);
   });
 
   test("stats histograms return deltas and complete-only completion metrics", () => {

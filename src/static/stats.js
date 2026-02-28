@@ -546,31 +546,23 @@ async function loadStats() {
     const rpmByDate = new Map((barsPayload.data?.rpms || []).map((row) => [row.date, row]));
     const windowDates = buildDateWindow(getBarDays());
 
-    const sessionRows = windowDates.map((date) => {
-      const row = sessionByDate.get(date);
-      if (row) {
-        return row;
-      }
-      return {
-        date,
-        first_sessions: 0,
-        completion_sessions: 0,
-        progression_sessions: 0,
-        first_completion_sessions: 0,
-      };
-    });
+    function fillDateWindow(map, dates, defaultFn) {
+      return dates.map((date) => map.get(date) ?? defaultFn(date));
+    }
 
-    const rpmRows = windowDates.map((date) => {
-      const row = rpmByDate.get(date);
-      if (row) {
-        return row;
-      }
-      return {
-        date,
-        first_sessions: 0,
-        delta_bins: [],
-      };
-    });
+    const sessionRows = fillDateWindow(sessionByDate, windowDates, (date) => ({
+      date,
+      first_sessions: 0,
+      completion_sessions: 0,
+      progression_sessions: 0,
+      first_completion_sessions: 0,
+    }));
+
+    const rpmRows = fillDateWindow(rpmByDate, windowDates, (date) => ({
+      date,
+      first_sessions: 0,
+      delta_bins: [],
+    }));
 
     renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
     renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
@@ -595,19 +587,19 @@ async function loadStats() {
     });
   } catch (err) {
     summary.textContent = err instanceof Error ? err.message : "Failed to load stats";
-    sessionsBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    sessionsYAxis.textContent = "";
-    rpmBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    rpmYAxis.textContent = "";
+    const errorPairs = [
+      [sessionsBars, sessionsYAxis],
+      [rpmBars, rpmYAxis],
+      [progressBars, progressYAxis],
+      [histDeltasBars, histDeltasYAxis],
+      [histSessionsBars, histSessionsYAxis],
+      [histDaysBars, histDaysYAxis],
+    ];
+    for (const [bars, axis] of errorPairs) {
+      bars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
+      axis.textContent = "";
+    }
     rpmLegend.textContent = "";
-    progressBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    progressYAxis.textContent = "";
-    histDeltasBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    histDeltasYAxis.textContent = "";
-    histSessionsBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    histSessionsYAxis.textContent = "";
-    histDaysBars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-    histDaysYAxis.textContent = "";
   }
 }
 
