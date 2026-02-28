@@ -93,7 +93,6 @@ class RpmApp extends LitElement {
     if (progress && validProgress.has(progress)) {
       this.progressFilter = progress;
     }
-
   }
 
   syncUrlState() {
@@ -502,6 +501,22 @@ class RpmApp extends LitElement {
     };
   }
 
+  _onFormSubmit(action) {
+    return (event) => {
+      event.preventDefault();
+      action.call(this);
+    };
+  }
+
+  _renderPenIcon() {
+    return html`
+      <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
+        <path d="M13.8 5.9l3.2 3.2"></path>
+      </svg>
+    `;
+  }
+
   fmt(value) {
     return value === null || value === undefined ? "-" : String(value);
   }
@@ -588,10 +603,7 @@ class RpmApp extends LitElement {
               </select>
               ${this.filterArtistId
                 ? html`<button class="btn btn-small" @click=${this.openEditArtistDialog} aria-label="Edit artist" title="Edit artist">
-                    <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
-                      <path d="M13.8 5.9l3.2 3.2"></path>
-                    </svg>
+                    ${this._renderPenIcon()}
                   </button>`
                 : ""}
               ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
@@ -664,10 +676,7 @@ class RpmApp extends LitElement {
                                     </div>
                                     <div class="actions">
                                       <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
-                                        <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                          <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
-                                          <path d="M13.8 5.9l3.2 3.2"></path>
-                                        </svg>
+                                        ${this._renderPenIcon()}
                                       </button>
                                       <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                         ...
@@ -744,10 +753,7 @@ class RpmApp extends LitElement {
                                 <td>
                                   <div class="actions">
                                     <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
-                                      <svg class="icon-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <path d="M4 20l4.2-1 9.9-9.9-3.2-3.2L5 15.8 4 20z"></path>
-                                        <path d="M13.8 5.9l3.2 3.2"></path>
-                                      </svg>
+                                      ${this._renderPenIcon()}
                                     </button>
                                     <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                       ...
@@ -788,7 +794,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="addSessionDialog" class="modal">
-        <form @submit=${(e) => { e.preventDefault(); this.submitAddSession(); }}>
+        <form @submit=${this._onFormSubmit(this.submitAddSession)}>
           <h3>Add Session</h3>
           <div class="range-grid">
             <div class="muted">
@@ -827,7 +833,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="addLickDialog" class="modal">
-        <form @submit=${(e) => { e.preventDefault(); this.submitAddLick(); }}>
+        <form @submit=${this._onFormSubmit(this.submitAddLick)}>
           <h3>Add Lick</h3>
           <div class="range-grid">
             <div class="muted">
@@ -861,7 +867,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="addArtistDialog" class="modal">
-        <form @submit=${(e) => { e.preventDefault(); this.submitAddArtist(); }}>
+        <form @submit=${this._onFormSubmit(this.submitAddArtist)}>
           <h3>Add Artist</h3>
           <div class="range-grid">
             <label for="newArtistName">Artist</label>
@@ -875,7 +881,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="editArtistDialog" class="modal">
-        <form @submit=${(e) => { e.preventDefault(); this.submitEditArtist(); }}>
+        <form @submit=${this._onFormSubmit(this.submitEditArtist)}>
           <h3>Edit Artist</h3>
           <div class="range-grid">
             <label for="editArtistName">Artist</label>
@@ -889,7 +895,7 @@ class RpmApp extends LitElement {
       </dialog>
 
       <dialog id="editLickDialog" class="modal">
-        <form @submit=${(e) => { e.preventDefault(); this.submitEditLick(); }}>
+        <form @submit=${this._onFormSubmit(this.submitEditLick)}>
           <h3>Edit Lick</h3>
           <div class="range-grid">
             <div class="muted">

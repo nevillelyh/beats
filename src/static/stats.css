@@ -153,24 +153,6 @@
   margin: 0 auto;
 }
 
-.stats-bars-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  width: calc(var(--axis-width) + var(--axis-gap) + var(--heatmap-width) + 24px);
-  max-width: 100%;
-  margin: 0 auto;
-}
-
-.stats-bars-row .stats-bars-card {
-  width: 100%;
-  margin: 0;
-}
-
-.stats-bars-row .bars-plot {
-  width: 100%;
-}
-
 .bars-section {
   display: grid;
   gap: 8px;
@@ -322,7 +304,7 @@
 .stats-two-col {
   --cell-size: 12px;
   --cell-gap: 3px;
-  --weeks: 52;
+  --weeks: 53;
   --axis-width: 34px;
   --axis-gap: 6px;
   --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));
@@ -349,14 +331,12 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  .stats-bars-row,
   .stats-two-col {
     width: 100%;
   }
 }
 
 @media (max-width: 860px) {
-  .stats-bars-row,
   .stats-two-col {
     grid-template-columns: 1fr;
   }

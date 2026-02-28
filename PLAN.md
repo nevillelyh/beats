@@ -363,6 +363,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 13. Dockerfile + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.
 15. Split analytics UI into `Trends` (`/trends.html`) and `Stats` (`/stats.html`) with shared tab navigation.
+16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers and removed unused stats CSS blocks).
 
 ## Reference Docs
 

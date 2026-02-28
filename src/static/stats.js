@@ -736,20 +736,15 @@ async function loadStats() {
         }));
         renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
         renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
-        renderRangeButtons(sessionsRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, (nextValue) => {
+        const setActiveBarsRange = (nextValue) => {
           if (nextValue === activeBarsRange) {
             return;
           }
           activeBarsRange = nextValue;
           renderBarsRange();
-        });
-        renderRangeButtons(rpmRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, (nextValue) => {
-          if (nextValue === activeBarsRange) {
-            return;
-          }
-          activeBarsRange = nextValue;
-          renderBarsRange();
-        });
+        };
+        renderRangeButtons(sessionsRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, setActiveBarsRange);
+        renderRangeButtons(rpmRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, setActiveBarsRange);
       };
       renderBarsRange();
     }
