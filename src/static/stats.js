@@ -149,22 +149,24 @@ function buildRangeOptions(rows) {
   const currentYear = today.getFullYear();
   const firstDate = rows.length ? rows.reduce((min, row) => (row.date < min ? row.date : min), rows[0].date) : null;
   const firstYear = firstDate ? Number(firstDate.slice(0, 4)) : currentYear;
-  const options = [{ value: "rolling", label: "Last year" }];
+  const options = [{ value: "rolling", label: "Last Year" }];
   for (let year = currentYear; year >= firstYear; year -= 1) {
     options.push({ value: String(year), label: String(year) });
   }
   return options;
 }
 
-function populateRangeSelect(select, options) {
-  select.textContent = "";
+function renderRangeButtons(container, options, selectedValue, onSelect) {
+  container.textContent = "";
   for (const option of options) {
-    const el = document.createElement("option");
-    el.value = option.value;
-    el.textContent = option.label;
-    select.appendChild(el);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `btn btn-small${option.value === selectedValue ? " btn-primary" : ""}`;
+    button.textContent = option.label;
+    button.setAttribute("aria-pressed", option.value === selectedValue ? "true" : "false");
+    button.addEventListener("click", () => onSelect(option.value));
+    container.appendChild(button);
   }
-  select.value = "rolling";
 }
 
 function renderHeatmap({
@@ -569,7 +571,7 @@ async function loadStats() {
   const statsBarsWrap = document.querySelector(".stats-bars-wrap");
   const grid = document.querySelector("#statsGrid");
   const statsWrap = document.querySelector(".stats-wrap");
-  const rangeSelect = document.querySelector("#statsRangeSelect");
+  const rangeButtons = document.querySelector("#statsRangeButtons");
   const monthAxis = document.querySelector("#statsMonthAxis");
   const weekdayAxis = document.querySelector("#statsWeekdayAxis");
   const sessionsBars = document.querySelector("#sessionsBars");
@@ -590,7 +592,7 @@ async function loadStats() {
       && statsCard
       && grid
       && statsWrap
-      && rangeSelect
+      && rangeButtons
       && monthAxis
       && weekdayAxis,
   );
@@ -636,19 +638,9 @@ async function loadStats() {
 
     if (hasHeatmap) {
       const rows = summaryPayload?.data || [];
-      populateRangeSelect(rangeSelect, buildRangeOptions(rows));
-      renderHeatmap({
-        statsCard,
-        statsBarsWrap,
-        grid,
-        monthAxis,
-        weekdayAxis,
-        summary,
-        statsWrap,
-        rows,
-        rangeValue: rangeSelect.value,
-      });
-      rangeSelect.addEventListener("change", () => {
+      const rangeOptions = buildRangeOptions(rows);
+      let activeRangeValue = "rolling";
+      const renderActiveRange = () => {
         renderHeatmap({
           statsCard,
           statsBarsWrap,
@@ -658,9 +650,17 @@ async function loadStats() {
           summary,
           statsWrap,
           rows,
-          rangeValue: rangeSelect.value,
+          rangeValue: activeRangeValue,
         });
-      });
+        renderRangeButtons(rangeButtons, rangeOptions, activeRangeValue, (nextValue) => {
+          if (nextValue === activeRangeValue) {
+            return;
+          }
+          activeRangeValue = nextValue;
+          renderActiveRange();
+        });
+      };
+      renderActiveRange();
     }
 
     if (hasSessionBars) {

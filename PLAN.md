@@ -263,11 +263,11 @@ Each lick row has:
     - On mobile, display window is last `30` days.
   - On wide desktop screens, the heatmap card uses fixed chart-width sizing (not full-width stretch).
   - Heatmap range/viewport behavior:
-    - default range is rolling `Last year` (`52` weeks, ending this week) on all viewports
-    - range dropdown includes `Last year` plus calendar years in descending order down to first session year
+    - default range is rolling `Last Year` (`52` weeks, ending this week) on all viewports
+    - range selector is a horizontal button row above the heatmap card (`Last Year`, then descending years)
     - selecting a calendar year renders that full year (`Jan 01` to `Dec 31`)
     - mobile allows horizontal scrolling for the heatmap when needed
-    - on mobile default (`Last year`) view, initial scroll is right-aligned so newest days are visible
+    - on mobile default (`Last Year`) view, initial scroll is right-aligned so newest days are visible
     - desktop heatmap card width is fixed to match the chart-width model used by the bar-chart cards
     - Safari overflow/truncation is avoided by explicit heatmap-width column sizing (no `max-content` growth)
 - `Stats` page (`RPMs - Stats`) renders:
