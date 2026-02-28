@@ -4,7 +4,7 @@
   --axis-width: 34px;
   --axis-gap: 6px;
   --month-axis-height: 16px;
-  --weeks: 52;
+  --weeks: 53;
   --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));
 }
 
@@ -136,7 +136,7 @@
 .stats-bars-wrap {
   --cell-size: 12px;
   --cell-gap: 3px;
-  --weeks: 52;
+  --weeks: 53;
   --axis-width: 34px;
   --axis-gap: 6px;
   --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));

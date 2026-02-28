@@ -1,4 +1,4 @@
-const HEATMAP_DEFAULT_WEEKS = 52;
+const HEATMAP_DEFAULT_WEEKS = 53;
 const BARS_HEIGHT = 180;
 const BARS_RANGE_OPTIONS = [
   { value: "1M", label: "1M" },
@@ -152,7 +152,7 @@ function buildRangeOptions(rows) {
   const currentYear = today.getFullYear();
   const firstDate = rows.length ? rows.reduce((min, row) => (row.date < min ? row.date : min), rows[0].date) : null;
   const firstYear = firstDate ? Number(firstDate.slice(0, 4)) : currentYear;
-  const options = [{ value: "rolling", label: "Last Year" }];
+  const options = [{ value: "rolling", label: "1Y" }];
   for (let year = currentYear; year >= firstYear; year -= 1) {
     options.push({ value: String(year), label: String(year) });
   }
