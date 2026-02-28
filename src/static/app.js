@@ -528,11 +528,14 @@ class RpmApp extends LitElement {
     return html`${row.lick_name}`;
   }
 
-  header(label, key) {
+  header(label, key, className = "") {
     const active = this.sortBy === key;
-    const marker = active ? (this.sortDir === "asc" ? " ▲" : " ▼") : "";
-    return html`<th>
-      <button class=${active ? "active" : ""} @click=${() => this.onSort(key)}>${label}${marker}</button>
+    const marker = this.sortDir === "asc" ? "▲" : "▼";
+    return html`<th class=${className}>
+      <button class=${active ? "active" : ""} @click=${() => this.onSort(key)}>
+        <span>${label}</span>
+        <span class="sort-marker ${active ? "sort-marker-active" : ""}" aria-hidden="true">${marker}</span>
+      </button>
     </th>`;
   }
 
@@ -719,10 +722,10 @@ class RpmApp extends LitElement {
                       <tr>
                         ${this.header("Artist", "artist")}
                         ${this.header("Lick", "lick")}
-                        ${this.header("Goal", "goal")}
-                        ${this.header("Best", "best")}
-                        ${this.header("%", "pct")}
-                        ${this.header("#", "sessions")}
+                        ${this.header("Goal", "goal", "col-rpm")}
+                        ${this.header("Best", "best", "col-rpm")}
+                        ${this.header("%", "pct", "col-rpm")}
+                        ${this.header("#", "sessions", "col-rpm")}
                         ${this.header("First", "first")}
                         ${this.header("Last", "last")}
                         <th>Actions</th>
@@ -736,18 +739,18 @@ class RpmApp extends LitElement {
                               <tr>
                                 <td>${row.artist_name}</td>
                                 <td class="lick-cell">${this.renderLickName(row)}</td>
-                                <td>${row.goal_rpm}</td>
-                                <td>
+                                <td class="col-rpm">${row.goal_rpm}</td>
+                                <td class="col-rpm">
                                   <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>
                                     ${this.fmt(row.best_rpm)}
                                   </span>
                                 </td>
-                                <td>
+                                <td class="col-rpm col-pct">
                                   <span class=${row.pct_of_goal !== null && row.pct_of_goal >= 100 ? "goal-hit-text" : ""}>
                                     ${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}
                                   </span>
                                 </td>
-                                <td>${row.session_count}</td>
+                                <td class="col-rpm">${row.session_count}</td>
                                 <td>${this.fmt(row.first_date)}</td>
                                 <td>${this.fmt(row.last_date)}</td>
                                 <td>

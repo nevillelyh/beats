@@ -169,6 +169,10 @@ Rules:
   - When `Best >= Goal` and `% >= 100`, values are emphasized.
   - Desktop table uses bold green text (no pill/background) to preserve row alignment.
   - Wrapped mobile cards use green pill-style emphasis.
+- Desktop numeric alignment:
+  - `Goal`, `Best`, `%`, and `#` columns are right-aligned.
+  - Header sort controls retain bubble styling and reserve arrow space.
+  - `%` column uses slightly reduced right cell padding versus other numeric columns.
 - URL persists view state:
   - `artist` (artist filter)
   - `sort` (sort field)

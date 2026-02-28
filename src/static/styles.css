@@ -194,6 +194,19 @@ body {
   overflow-wrap: anywhere;
 }
 
+.table th.col-rpm,
+.table td.col-rpm {
+  text-align: right;
+}
+
+.table td.col-rpm {
+  padding-right: 22px;
+}
+
+.table td.col-pct {
+  padding-right: 14px;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -216,6 +229,9 @@ body {
   font-weight: 700;
   cursor: pointer;
   padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border-radius: 999px;
 }
 
@@ -223,6 +239,21 @@ body {
   color: #fff;
   background: #0f6f9f;
   border-color: #0d5f87;
+}
+
+.table th.col-rpm button {
+  padding-right: 8px;
+}
+
+.table .sort-marker {
+  display: inline-block;
+  width: 0.9em;
+  text-align: center;
+  color: transparent;
+}
+
+.table .sort-marker.sort-marker-active {
+  color: currentColor;
 }
 
 .actions {
