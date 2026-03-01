@@ -917,7 +917,7 @@ class RpmApp extends LitElement {
                 class="rpm-number-input"
                 type="number"
                 min=${this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1)}
-                step="5"
+                step="1"
                 @input=${this.updateEditGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustEditGoalValue)}
               />

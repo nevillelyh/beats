@@ -246,6 +246,7 @@ Each lick row has:
   - Validation:
     - same per-artist unique lick-name constraint
     - minimum goal RPM is prior best session RPM when it exists
+    - goal input accepts any integer value (`step=1`) so existing non-5-multiple goals remain editable
 
 ### Trends and Stats pages
 
