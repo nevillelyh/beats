@@ -350,6 +350,7 @@ body {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 8px;
+  touch-action: manipulation;
 }
 
 .rpm-stepper .rpm-number-input {
@@ -366,6 +367,15 @@ body {
   font-size: 1.35rem;
   font-weight: 800;
   line-height: 1;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn-step.btn-step-disabled,
+.btn-step[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Hide native number spinners so stepper buttons are the only controls. */

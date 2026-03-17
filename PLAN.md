@@ -235,6 +235,9 @@ Each lick row has:
     - RPM input supports stepper keys:
       - `ArrowUp` / `+` increase by `5`
       - `ArrowDown` / `-` decrease by `5`
+    - Focus behavior:
+      - desktop focuses the RPM numeric input when the dialog opens so stepper keyboard shortcuts work immediately
+      - mobile does not focus the numeric input on open, to avoid showing the iOS virtual keyboard and shifting the viewport
   - Submit creates today's session
 - `Edit` icon in row actions (before `...`)
   - Opens `Edit Lick` dialog for selected lick:
@@ -243,6 +246,9 @@ Each lick row has:
     - `Enter` submits the dialog
     - `Esc` closes the dialog
     - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
+  - Focus behavior:
+    - desktop focuses the Goal RPM input when the dialog opens
+    - mobile does not focus the Goal RPM input on open, to avoid iOS viewport shifts from the virtual keyboard
   - Validation:
     - same per-artist unique lick-name constraint
     - minimum goal RPM is prior best session RPM when it exists
@@ -299,6 +305,9 @@ Shown only when artist filter is active. Modal uses currently selected artist an
   - `Enter` submits the dialog
   - `Esc` closes the dialog
   - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
+- Focus behavior:
+  - desktop focuses the Goal RPM input when the dialog opens
+  - mobile does not focus the Goal RPM input on open, to avoid iOS viewport shifts from the virtual keyboard
 
 ### Add artist
 

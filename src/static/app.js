@@ -126,12 +126,13 @@ class RpmApp extends LitElement {
     return this.renderRoot?.querySelector(`#${id}`);
   }
 
-  openDialog(id) {
+  openDialog(id, options = {}) {
     const dialog = this.el(id);
     if (!dialog) {
       return;
     }
     dialog.showModal();
+    this._applyDialogFocus(dialog, options.desktopFocusId);
   }
 
   closeDialog(id) {
@@ -140,6 +141,33 @@ class RpmApp extends LitElement {
       return;
     }
     dialog.close();
+  }
+
+  _applyDialogFocus(dialog, desktopFocusId) {
+    requestAnimationFrame(() => {
+      if (this.compact) {
+        const active = document.activeElement;
+        if (active instanceof HTMLElement) {
+          active.blur();
+        }
+        if (dialog instanceof HTMLElement) {
+          dialog.focus();
+        }
+        return;
+      }
+
+      if (!desktopFocusId) {
+        return;
+      }
+      const target = this.el(desktopFocusId);
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      target.focus();
+      if (target instanceof HTMLInputElement) {
+        target.select();
+      }
+    });
   }
 
   async api(path, options = {}) {
@@ -267,7 +295,7 @@ class RpmApp extends LitElement {
     this.addMin = min;
     this.addMax = max;
     this.addValue = Math.max(min, Math.min(max, suggested));
-    this.openDialog("addSessionDialog");
+    this.openDialog("addSessionDialog", { desktopFocusId: "addRpmInput" });
   }
 
   updateAddValue(event) {
@@ -282,6 +310,18 @@ class RpmApp extends LitElement {
   adjustAddValue(delta) {
     const next = this.addValue + delta;
     this.addValue = Math.max(this.addMin, Math.min(this.addMax, next));
+  }
+
+  _stepperButtonClass(isDisabled) {
+    return `btn btn-step${isDisabled ? " btn-step-disabled" : ""}`;
+  }
+
+  _onStepperPress(event, isDisabled, adjustFn, delta) {
+    event.preventDefault();
+    if (isDisabled) {
+      return;
+    }
+    adjustFn.call(this, delta);
   }
 
   addValueValidationError() {
@@ -383,7 +423,7 @@ class RpmApp extends LitElement {
     if (goalInput) {
       goalInput.value = String(lick.goal_rpm || "");
     }
-    this.openDialog("editLickDialog");
+    this.openDialog("editLickDialog", { desktopFocusId: "editGoalRpm" });
   }
 
   _editGoalMin() {
@@ -427,7 +467,7 @@ class RpmApp extends LitElement {
     if (goalInput && !goalInput.value) {
       goalInput.value = "100";
     }
-    this.openDialog("addLickDialog");
+    this.openDialog("addLickDialog", { desktopFocusId: "goalRpm" });
   }
 
   openAddArtistDialog() {
@@ -808,7 +848,12 @@ class RpmApp extends LitElement {
             <div class="muted">Goal: ${this.activeLick?.goal_rpm ?? "-"}</div>
             ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
             <div class="rpm-stepper">
-              <button type="button" class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue <= this.addMin} @click=${() => this.adjustAddValue(-5)}>
+              <button
+                type="button"
+                class=${this._stepperButtonClass(addDisabledByRange || this.addValue <= this.addMin)}
+                aria-disabled=${String(addDisabledByRange || this.addValue <= this.addMin)}
+                @click=${(event) => this._onStepperPress(event, addDisabledByRange || this.addValue <= this.addMin, this.adjustAddValue, -5)}
+              >
                 -
               </button>
               <input
@@ -823,7 +868,12 @@ class RpmApp extends LitElement {
                 @input=${this.updateAddValue}
                 @keydown=${this._stepperKeydown(this.adjustAddValue, function () { return this.addMin > this.addMax; })}
               />
-              <button type="button" class="btn btn-step" ?disabled=${addDisabledByRange || this.addValue >= this.addMax} @click=${() => this.adjustAddValue(5)}>
+              <button
+                type="button"
+                class=${this._stepperButtonClass(addDisabledByRange || this.addValue >= this.addMax)}
+                aria-disabled=${String(addDisabledByRange || this.addValue >= this.addMax)}
+                @click=${(event) => this._onStepperPress(event, addDisabledByRange || this.addValue >= this.addMax, this.adjustAddValue, 5)}
+              >
                 +
               </button>
             </div>
@@ -849,7 +899,14 @@ class RpmApp extends LitElement {
             <input id="lickUrl" type="url" placeholder="https://..." />
             <label for="goalRpm">Goal RPM</label>
             <div class="rpm-stepper">
-              <button type="button" class="btn btn-step" @click=${() => this.adjustGoalValue(-5)}>-</button>
+              <button
+                type="button"
+                class=${this._stepperButtonClass(false)}
+                aria-disabled="false"
+                @click=${(event) => this._onStepperPress(event, false, this.adjustGoalValue, -5)}
+              >
+                -
+              </button>
               <input
                 id="goalRpm"
                 class="rpm-number-input"
@@ -859,7 +916,14 @@ class RpmApp extends LitElement {
                 @input=${this.updateGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustGoalValue)}
               />
-              <button type="button" class="btn btn-step" @click=${() => this.adjustGoalValue(5)}>+</button>
+              <button
+                type="button"
+                class=${this._stepperButtonClass(false)}
+                aria-disabled="false"
+                @click=${(event) => this._onStepperPress(event, false, this.adjustGoalValue, 5)}
+              >
+                +
+              </button>
             </div>
           </div>
           <div class="dialog-actions">
@@ -911,7 +975,14 @@ class RpmApp extends LitElement {
             <input id="editLickUrl" type="url" placeholder="https://..." />
             <label for="editGoalRpm">Goal RPM</label>
             <div class="rpm-stepper">
-              <button type="button" class="btn btn-step" @click=${() => this.adjustEditGoalValue(-5)}>-</button>
+              <button
+                type="button"
+                class=${this._stepperButtonClass(false)}
+                aria-disabled="false"
+                @click=${(event) => this._onStepperPress(event, false, this.adjustEditGoalValue, -5)}
+              >
+                -
+              </button>
               <input
                 id="editGoalRpm"
                 class="rpm-number-input"
@@ -921,7 +992,14 @@ class RpmApp extends LitElement {
                 @input=${this.updateEditGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustEditGoalValue)}
               />
-              <button type="button" class="btn btn-step" @click=${() => this.adjustEditGoalValue(5)}>+</button>
+              <button
+                type="button"
+                class=${this._stepperButtonClass(false)}
+                aria-disabled="false"
+                @click=${(event) => this._onStepperPress(event, false, this.adjustEditGoalValue, 5)}
+              >
+                +
+              </button>
             </div>
           </div>
           <div class="dialog-actions">
