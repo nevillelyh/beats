@@ -1,5 +1,12 @@
 import { LitElement, html } from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
 
+const COMPACT_BREAKPOINT = 720;
+const VALID_SORT_OPTIONS = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
+const VALID_DIR_OPTIONS = new Set(["asc", "desc"]);
+const VALID_PROGRESS_FILTERS = new Set(["all", "new", "progress", "done"]);
+const STEPPER_INCREMENT_KEYS = ["ArrowUp", "+", "=", "NumpadAdd"];
+const STEPPER_DECREMENT_KEYS = ["ArrowDown", "-", "NumpadSubtract"];
+
 class RpmApp extends LitElement {
   static properties = {
     artists: { state: true },
@@ -44,9 +51,9 @@ class RpmApp extends LitElement {
     this.addMin = 0;
     this.addMax = 0;
     this.progressFilter = "all";
-    this.compact = typeof window !== "undefined" ? window.innerWidth <= 720 : false;
+    this.compact = typeof window !== "undefined" ? window.innerWidth <= COMPACT_BREAKPOINT : false;
     this._onResize = () => {
-      const next = window.innerWidth <= 720;
+      const next = window.innerWidth <= COMPACT_BREAKPOINT;
       if (next !== this.compact) {
         this.compact = next;
       }
@@ -72,25 +79,21 @@ class RpmApp extends LitElement {
   }
 
   applyUrlState(params) {
-    const validSort = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
-    const validDir = new Set(["asc", "desc"]);
-    const validProgress = new Set(["all", "new", "progress", "done"]);
-
     const sortBy = params.get("sort");
     const sortDir = params.get("dir");
     const artist = params.get("artist");
     const progress = params.get("progress");
 
-    if (sortBy && validSort.has(sortBy)) {
+    if (sortBy && VALID_SORT_OPTIONS.has(sortBy)) {
       this.sortBy = sortBy;
     }
-    if (sortDir && validDir.has(sortDir)) {
+    if (sortDir && VALID_DIR_OPTIONS.has(sortDir)) {
       this.sortDir = sortDir;
     }
     if (artist !== null) {
       this.filterArtistId = artist;
     }
-    if (progress && validProgress.has(progress)) {
+    if (progress && VALID_PROGRESS_FILTERS.has(progress)) {
       this.progressFilter = progress;
     }
   }
@@ -254,6 +257,14 @@ class RpmApp extends LitElement {
     this.syncUrlState();
   }
 
+  isDoneRow(row) {
+    return row.pct_of_goal !== null && row.pct_of_goal >= 100;
+  }
+
+  isInProgressRow(row) {
+    return row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100;
+  }
+
   async openSessions(lick) {
     this.activeLick = lick;
     this.sessionSortBy = "date";
@@ -322,6 +333,19 @@ class RpmApp extends LitElement {
       return;
     }
     adjustFn.call(this, delta);
+  }
+
+  renderStepperButton(label, isDisabled, adjustFn, delta) {
+    return html`
+      <button
+        type="button"
+        class=${this._stepperButtonClass(isDisabled)}
+        aria-disabled=${String(isDisabled)}
+        @click=${(event) => this._onStepperPress(event, isDisabled, adjustFn, delta)}
+      >
+        ${label}
+      </button>
+    `;
   }
 
   addValueValidationError() {
@@ -529,12 +553,12 @@ class RpmApp extends LitElement {
       if (guard && guard.call(this)) {
         return;
       }
-      if (["ArrowUp", "+", "=", "NumpadAdd"].includes(event.key)) {
+      if (STEPPER_INCREMENT_KEYS.includes(event.key)) {
         event.preventDefault();
         adjustFn.call(this, 5);
         return;
       }
-      if (["ArrowDown", "-", "NumpadSubtract"].includes(event.key)) {
+      if (STEPPER_DECREMENT_KEYS.includes(event.key)) {
         event.preventDefault();
         adjustFn.call(this, -5);
       }
@@ -591,10 +615,8 @@ class RpmApp extends LitElement {
     const addDisabledByRange = this.addMin > this.addMax;
     const addValidationError = addDisabledByRange ? "" : this.addValueValidationError();
     const newCount = this.licks.filter((row) => row.session_count === 0).length;
-    const inProgressCount = this.licks.filter(
-      (row) => row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100,
-    ).length;
-    const doneCount = this.licks.filter((row) => row.pct_of_goal !== null && row.pct_of_goal >= 100).length;
+    const inProgressCount = this.licks.filter((row) => this.isInProgressRow(row)).length;
+    const doneCount = this.licks.filter((row) => this.isDoneRow(row)).length;
     const startedPcts = this.licks
       .filter((row) => row.session_count > 0 && row.pct_of_goal !== null)
       .map((row) => row.pct_of_goal);
@@ -610,9 +632,9 @@ class RpmApp extends LitElement {
         return row.session_count === 0;
       }
       if (this.progressFilter === "progress") {
-        return row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100;
+        return this.isInProgressRow(row);
       }
-      return row.pct_of_goal !== null && row.pct_of_goal >= 100;
+      return this.isDoneRow(row);
     });
 
     return html`
@@ -848,14 +870,7 @@ class RpmApp extends LitElement {
             <div class="muted">Goal: ${this.activeLick?.goal_rpm ?? "-"}</div>
             ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
             <div class="rpm-stepper">
-              <button
-                type="button"
-                class=${this._stepperButtonClass(addDisabledByRange || this.addValue <= this.addMin)}
-                aria-disabled=${String(addDisabledByRange || this.addValue <= this.addMin)}
-                @click=${(event) => this._onStepperPress(event, addDisabledByRange || this.addValue <= this.addMin, this.adjustAddValue, -5)}
-              >
-                -
-              </button>
+              ${this.renderStepperButton("-", addDisabledByRange || this.addValue <= this.addMin, this.adjustAddValue, -5)}
               <input
                 id="addRpmInput"
                 class="rpm-number-input"
@@ -868,14 +883,7 @@ class RpmApp extends LitElement {
                 @input=${this.updateAddValue}
                 @keydown=${this._stepperKeydown(this.adjustAddValue, function () { return this.addMin > this.addMax; })}
               />
-              <button
-                type="button"
-                class=${this._stepperButtonClass(addDisabledByRange || this.addValue >= this.addMax)}
-                aria-disabled=${String(addDisabledByRange || this.addValue >= this.addMax)}
-                @click=${(event) => this._onStepperPress(event, addDisabledByRange || this.addValue >= this.addMax, this.adjustAddValue, 5)}
-              >
-                +
-              </button>
+              ${this.renderStepperButton("+", addDisabledByRange || this.addValue >= this.addMax, this.adjustAddValue, 5)}
             </div>
           </div>
           <div class="dialog-actions">
@@ -899,14 +907,7 @@ class RpmApp extends LitElement {
             <input id="lickUrl" type="url" placeholder="https://..." />
             <label for="goalRpm">Goal RPM</label>
             <div class="rpm-stepper">
-              <button
-                type="button"
-                class=${this._stepperButtonClass(false)}
-                aria-disabled="false"
-                @click=${(event) => this._onStepperPress(event, false, this.adjustGoalValue, -5)}
-              >
-                -
-              </button>
+              ${this.renderStepperButton("-", false, this.adjustGoalValue, -5)}
               <input
                 id="goalRpm"
                 class="rpm-number-input"
@@ -916,14 +917,7 @@ class RpmApp extends LitElement {
                 @input=${this.updateGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustGoalValue)}
               />
-              <button
-                type="button"
-                class=${this._stepperButtonClass(false)}
-                aria-disabled="false"
-                @click=${(event) => this._onStepperPress(event, false, this.adjustGoalValue, 5)}
-              >
-                +
-              </button>
+              ${this.renderStepperButton("+", false, this.adjustGoalValue, 5)}
             </div>
           </div>
           <div class="dialog-actions">
@@ -975,14 +969,7 @@ class RpmApp extends LitElement {
             <input id="editLickUrl" type="url" placeholder="https://..." />
             <label for="editGoalRpm">Goal RPM</label>
             <div class="rpm-stepper">
-              <button
-                type="button"
-                class=${this._stepperButtonClass(false)}
-                aria-disabled="false"
-                @click=${(event) => this._onStepperPress(event, false, this.adjustEditGoalValue, -5)}
-              >
-                -
-              </button>
+              ${this.renderStepperButton("-", false, this.adjustEditGoalValue, -5)}
               <input
                 id="editGoalRpm"
                 class="rpm-number-input"
@@ -992,14 +979,7 @@ class RpmApp extends LitElement {
                 @input=${this.updateEditGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustEditGoalValue)}
               />
-              <button
-                type="button"
-                class=${this._stepperButtonClass(false)}
-                aria-disabled="false"
-                @click=${(event) => this._onStepperPress(event, false, this.adjustEditGoalValue, 5)}
-              >
-                +
-              </button>
+              ${this.renderStepperButton("+", false, this.adjustEditGoalValue, 5)}
             </div>
           </div>
           <div class="dialog-actions">

@@ -304,6 +304,67 @@ function buildBarsDateWindow(rangeValue, earliestDate) {
   return buildDateWindow(totalDays);
 }
 
+function fillDateWindow(map, dates, defaultFn) {
+  return dates.map((date) => map.get(date) ?? defaultFn(date));
+}
+
+async function fetchJson(path, headers) {
+  const response = await fetch(path, { headers });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || `Request failed: ${response.status}`);
+  }
+  return payload;
+}
+
+function clearChartWithError(errorPairs) {
+  for (const [bars, axis] of errorPairs) {
+    bars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
+    axis.textContent = "";
+  }
+}
+
+function createBarsGrid(count) {
+  const grid = document.createElement("div");
+  grid.className = "bars-grid";
+  grid.style.setProperty("--bars-count", String(count));
+  return grid;
+}
+
+function createBarStack(title) {
+  const stack = document.createElement("div");
+  stack.className = "bar-stack";
+  stack.style.height = `${BARS_HEIGHT}px`;
+  stack.title = title;
+  return stack;
+}
+
+function appendBarSegment(stack, className, height, backgroundColor) {
+  if (height <= 0) {
+    return;
+  }
+  const seg = document.createElement("div");
+  seg.className = className;
+  seg.style.height = `${height}px`;
+  if (backgroundColor) {
+    seg.style.backgroundColor = backgroundColor;
+  }
+  stack.appendChild(seg);
+}
+
+function appendBarColumn(grid, stack, labelText) {
+  const col = document.createElement("div");
+  col.className = "bar-col";
+
+  const label = document.createElement("div");
+  label.className = "bar-day";
+  label.textContent = labelText;
+
+  col.appendChild(stack);
+  col.appendChild(label);
+  grid.appendChild(col);
+}
+
 function chooseNiceStep(maxValue, targetTicks, minStep = 1) {
   if (maxValue <= 0) {
     return minStep;
@@ -356,18 +417,12 @@ function renderSessionsBars(target, yAxis, rows) {
   const scale = BARS_HEIGHT / maxTotal;
   renderYAxis(yAxis, maxTotal, { targetTicks: 4, minStep: 1 });
 
-  const grid = document.createElement("div");
-  grid.className = "bars-grid";
-  grid.style.setProperty("--bars-count", String(rows.length));
+  const grid = createBarsGrid(rows.length);
 
   rows.forEach((row, index) => {
-    const col = document.createElement("div");
-    col.className = "bar-col";
-
-    const stack = document.createElement("div");
-    stack.className = "bar-stack";
-    stack.style.height = `${BARS_HEIGHT}px`;
-    stack.title = `${row.date}: first ${row.first_sessions}, progression ${row.progression_sessions}, completion ${row.completion_sessions}, first+completion ${row.first_completion_sessions}`;
+    const stack = createBarStack(
+      `${row.date}: first ${row.first_sessions}, progression ${row.progression_sessions}, completion ${row.completion_sessions}, first+completion ${row.first_completion_sessions}`,
+    );
 
     const segments = [
       ["bar-seg-first", row.first_sessions],
@@ -376,22 +431,9 @@ function renderSessionsBars(target, yAxis, rows) {
       ["bar-seg-first-completion", row.first_completion_sessions],
     ];
     for (const [cls, count] of segments) {
-      if (count <= 0) {
-        continue;
-      }
-      const seg = document.createElement("div");
-      seg.className = cls;
-      seg.style.height = `${Math.round(count * scale)}px`;
-      stack.appendChild(seg);
+      appendBarSegment(stack, cls, Math.round(count * scale));
     }
-
-    const label = document.createElement("div");
-    label.className = "bar-day";
-    label.textContent = shouldShowLabel(index, rows.length) ? shortDateLabel(row.date) : "";
-
-    col.appendChild(stack);
-    col.appendChild(label);
-    grid.appendChild(col);
+    appendBarColumn(grid, stack, shouldShowLabel(index, rows.length) ? shortDateLabel(row.date) : "");
   });
 
   target.appendChild(grid);
@@ -409,9 +451,7 @@ function renderProgressBars(target, yAxis, rows) {
   const scale = BARS_HEIGHT / maxCount;
   renderYAxis(yAxis, maxCount, { targetTicks: 4, minStep: 1 });
 
-  const grid = document.createElement("div");
-  grid.className = "bars-grid";
-  grid.style.setProperty("--bars-count", String(rows.length));
+  const grid = createBarsGrid(rows.length);
 
   const colorForBucket = (bucketPct) => {
     const hue = 18 + Math.round((bucketPct / 100) * 108);
@@ -419,29 +459,17 @@ function renderProgressBars(target, yAxis, rows) {
   };
 
   rows.forEach((row) => {
-    const col = document.createElement("div");
-    col.className = "bar-col";
-
-    const stack = document.createElement("div");
-    stack.className = "bar-stack";
-    stack.style.height = `${BARS_HEIGHT}px`;
-    stack.title = `${row.bucket_pct}%: ${row.lick_count} lick${row.lick_count === 1 ? "" : "s"}`;
+    const stack = createBarStack(`${row.bucket_pct}%: ${row.lick_count} lick${row.lick_count === 1 ? "" : "s"}`);
 
     if (row.lick_count > 0) {
-      const seg = document.createElement("div");
-      seg.className = "bar-seg-progress";
-      seg.style.height = `${Math.round(row.lick_count * scale)}px`;
-      seg.style.backgroundColor = colorForBucket(row.bucket_pct);
-      stack.appendChild(seg);
+      appendBarSegment(
+        stack,
+        "bar-seg-progress",
+        Math.round(row.lick_count * scale),
+        colorForBucket(row.bucket_pct),
+      );
     }
-
-    const label = document.createElement("div");
-    label.className = "bar-day";
-    label.textContent = `${row.bucket_pct}%`;
-
-    col.appendChild(stack);
-    col.appendChild(label);
-    grid.appendChild(col);
+    appendBarColumn(grid, stack, `${row.bucket_pct}%`);
   });
 
   target.appendChild(grid);
@@ -466,9 +494,7 @@ function renderHistogramBars(target, yAxis, rows, options = {}) {
   const scale = BARS_HEIGHT / maxCount;
   renderYAxis(yAxis, maxCount, { targetTicks: 4, minStep: 1 });
 
-  const grid = document.createElement("div");
-  grid.className = "bars-grid";
-  grid.style.setProperty("--bars-count", String(rows.length));
+  const grid = createBarsGrid(rows.length);
 
   const pickColor = (index) => {
     if (palette.length > 0) {
@@ -480,29 +506,12 @@ function renderHistogramBars(target, yAxis, rows, options = {}) {
   };
 
   rows.forEach((row, index) => {
-    const col = document.createElement("div");
-    col.className = "bar-col";
-
-    const stack = document.createElement("div");
-    stack.className = "bar-stack";
-    stack.style.height = `${BARS_HEIGHT}px`;
-    stack.title = `${titlePrefix}${formatBucket(row.bucket)}: ${row.count}`;
+    const stack = createBarStack(`${titlePrefix}${formatBucket(row.bucket)}: ${row.count}`);
 
     if (row.count > 0) {
-      const seg = document.createElement("div");
-      seg.className = barClass;
-      seg.style.height = `${Math.round(row.count * scale)}px`;
-      seg.style.backgroundColor = pickColor(index);
-      stack.appendChild(seg);
+      appendBarSegment(stack, barClass, Math.round(row.count * scale), pickColor(index));
     }
-
-    const label = document.createElement("div");
-    label.className = "bar-day";
-    label.textContent = shouldShowLabel(index, rows.length) ? formatBucket(row.bucket) : "";
-
-    col.appendChild(stack);
-    col.appendChild(label);
-    grid.appendChild(col);
+    appendBarColumn(grid, stack, shouldShowLabel(index, rows.length) ? formatBucket(row.bucket) : "");
   });
 
   target.appendChild(grid);
@@ -560,48 +569,30 @@ function renderRpmBars(target, yAxis, legend, rows) {
     legend.appendChild(unit);
   }
 
-  const grid = document.createElement("div");
-  grid.className = "bars-grid";
-  grid.style.setProperty("--bars-count", String(rows.length));
+  const grid = createBarsGrid(rows.length);
 
   rows.forEach((row, index) => {
-    const col = document.createElement("div");
-    col.className = "bar-col";
-
-    const stack = document.createElement("div");
-    stack.className = "bar-stack";
-    stack.style.height = `${BARS_HEIGHT}px`;
     const firstTotal = row.first_sessions * 5;
     const deltaText = row.delta_bins
       .map((part) => `+${part.delta_bin} x${part.session_count} = ${part.delta_bin * part.session_count}`)
       .join(", ");
-    stack.title = `${row.date}: first +5 x${row.first_sessions} = ${firstTotal}${deltaText ? `, ${deltaText}` : ""}`;
+    const stack = createBarStack(
+      `${row.date}: first +5 x${row.first_sessions} = ${firstTotal}${deltaText ? `, ${deltaText}` : ""}`,
+    );
 
     if (row.first_sessions > 0) {
-      const firstSeg = document.createElement("div");
-      firstSeg.className = "bar-seg-rpm-first";
-      firstSeg.style.height = `${Math.round(firstTotal * scale)}px`;
-      stack.appendChild(firstSeg);
+      appendBarSegment(stack, "bar-seg-rpm-first", Math.round(firstTotal * scale));
     }
 
     for (const part of row.delta_bins) {
-      if (part.session_count <= 0) {
-        continue;
-      }
-      const seg = document.createElement("div");
-      seg.className = "bar-seg-rpm-delta";
-      seg.style.height = `${Math.round(part.session_count * part.delta_bin * scale)}px`;
-      seg.style.backgroundColor = colorForDeltaBin(part.delta_bin, maxDeltaBin);
-      stack.appendChild(seg);
+      appendBarSegment(
+        stack,
+        "bar-seg-rpm-delta",
+        Math.round(part.session_count * part.delta_bin * scale),
+        colorForDeltaBin(part.delta_bin, maxDeltaBin),
+      );
     }
-
-    const label = document.createElement("div");
-    label.className = "bar-day";
-    label.textContent = shouldShowLabel(index, rows.length) ? shortDateLabel(row.date) : "";
-
-    col.appendChild(stack);
-    col.appendChild(label);
-    grid.appendChild(col);
+    appendBarColumn(grid, stack, shouldShowLabel(index, rows.length) ? shortDateLabel(row.date) : "");
   });
 
   target.appendChild(grid);
@@ -663,15 +654,6 @@ async function loadStats() {
     return;
   }
 
-  async function fetchJson(path, headers) {
-    const response = await fetch(path, { headers });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || `Request failed: ${response.status}`);
-    }
-    return payload;
-  }
-
   try {
     const headers = {
       "X-Local-Date": formatDate(new Date()),
@@ -714,10 +696,6 @@ async function loadStats() {
       const sessionByDate = new Map((barsPayload?.data?.sessions || []).map((row) => [row.date, row]));
       const rpmByDate = new Map((barsPayload?.data?.rpms || []).map((row) => [row.date, row]));
       const earliestSessionDate = [...sessionByDate.keys(), ...rpmByDate.keys()].sort()[0] || null;
-
-      function fillDateWindow(map, dates, defaultFn) {
-        return dates.map((date) => map.get(date) ?? defaultFn(date));
-      }
 
       let activeBarsRange = "1M";
       const renderBarsRange = () => {
@@ -787,10 +765,7 @@ async function loadStats() {
     if (histDeltasBars && histDeltasYAxis) errorPairs.push([histDeltasBars, histDeltasYAxis]);
     if (histSessionsBars && histSessionsYAxis) errorPairs.push([histSessionsBars, histSessionsYAxis]);
     if (histDaysBars && histDaysYAxis) errorPairs.push([histDaysBars, histDaysYAxis]);
-    for (const [bars, axis] of errorPairs) {
-      bars.innerHTML = `<div class="muted">Failed to load chart data.</div>`;
-      axis.textContent = "";
-    }
+    clearChartWithError(errorPairs);
     if (rpmLegend) {
       rpmLegend.textContent = "";
     }

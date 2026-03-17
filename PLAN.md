@@ -129,8 +129,8 @@ Provide `scripts/import_csv.py`:
 - `GET /api/stats/histograms`
   - Returns histogram data:
     - `session_deltas` (absolute RPM deltas, bucketed by 5)
-    - `sessions_to_completion` (completed licks only)
-    - `days_to_completion` (completed licks only)
+    - `sessions_to_complete` (completed licks only)
+    - `days_to_complete` (completed licks only)
 - `GET /api/stats/progress`
   - Returns best-% distribution bins:
     - `bucket_pct` from `0..100` in `10%` steps
@@ -378,7 +378,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 13. Dockerfile + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.
 15. Split analytics UI into `Trends` (`/trends.html`) and `Stats` (`/stats.html`) with shared tab navigation.
-16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers and removed unused stats CSS blocks).
+16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers, consolidated stepper/button helpers and progress predicates, unified repeated stats chart scaffolding, and removed unused stats CSS blocks).
 
 ## Reference Docs
 
