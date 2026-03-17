@@ -306,8 +306,9 @@ Shown only when artist filter is active. Modal uses currently selected artist an
   - `Esc` closes the dialog
   - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
 - Focus behavior:
-  - desktop focuses the Goal RPM input when the dialog opens
+  - desktop focuses the Lick input when the dialog opens
   - mobile does not focus the Goal RPM input on open, to avoid iOS viewport shifts from the virtual keyboard
+- Goal RPM input accepts any integer value (`step=1`) while the stepper buttons and keyboard shortcuts still adjust by `5`
 
 ### Add artist
 

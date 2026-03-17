@@ -491,7 +491,7 @@ class RpmApp extends LitElement {
     if (goalInput && !goalInput.value) {
       goalInput.value = "100";
     }
-    this.openDialog("addLickDialog", { desktopFocusId: "goalRpm" });
+    this.openDialog("addLickDialog", { desktopFocusId: "lickName" });
   }
 
   openAddArtistDialog() {
@@ -913,7 +913,7 @@ class RpmApp extends LitElement {
                 class="rpm-number-input"
                 type="number"
                 min="0"
-                step="5"
+                step="1"
                 @input=${this.updateGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustGoalValue)}
               />
