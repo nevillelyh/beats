@@ -270,6 +270,7 @@ Each lick row has:
     - options: `1M`, `3M`, `6M`, `1Y`, `2Y`, `YTD`, `All Time` (default `1M`)
     - selectors are synced: changing one applies to both charts
     - x-axis labels include month and day (`M/D`)
+    - on narrow mobile viewports, each day column must stay clipped to its own grid track so `1M` bars do not widen or overlap neighboring days
   - On wide desktop screens, the heatmap card uses fixed chart-width sizing (not full-width stretch).
   - Heatmap range/viewport behavior:
     - default range is rolling `1Y` (`53` weeks, ending this week) on all viewports

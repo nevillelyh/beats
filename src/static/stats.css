@@ -232,15 +232,19 @@
   grid-template-rows: 1fr 12px;
   gap: 4px;
   width: 100%;
+  min-width: 0;
   align-items: end;
   justify-items: stretch;
+  overflow: hidden;
 }
 
 .bar-stack {
   height: 180px;
   width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column-reverse;
+  overflow: hidden;
 }
 
 .bar-seg-first {
@@ -291,6 +295,7 @@
 .bar-day {
   height: 12px;
   width: 100%;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -298,7 +303,7 @@
   font-size: 0.62rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .stats-two-col {
