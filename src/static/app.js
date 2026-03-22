@@ -489,7 +489,7 @@ class RpmApp extends LitElement {
     }
     const goalInput = this.el("goalRpm");
     if (goalInput && !goalInput.value) {
-      goalInput.value = "100";
+      goalInput.value = "120";
     }
     this.openDialog("addLickDialog", { desktopFocusId: "lickName" });
   }

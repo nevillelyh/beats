@@ -300,7 +300,7 @@ Shown only when artist filter is active. Modal uses currently selected artist an
 - Lick name input
 - Optional URL input
 - Goal RPM stepper: `- [RPM number] +` (increment 5, minimum 1)
-- Default Goal RPM is `100` when opening the dialog
+- Default Goal RPM is `120` when opening the dialog
 - Keyboard UX:
   - `Enter` submits the dialog
   - `Esc` closes the dialog
