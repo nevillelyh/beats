@@ -210,6 +210,7 @@ Each lick row has:
   - Disabled when `session_count == 0`
   - Opens modal with sessions (`date`, `rpm`), sortable by either column
   - Default sort: `date desc`
+  - `Esc` closes the sessions modal
 
 - `+` (add session)
   - Disabled when `best >= goal`

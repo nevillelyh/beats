@@ -920,7 +920,7 @@ class RpmApp extends LitElement {
         </div>
       </div>
 
-      <dialog id="sessionsDialog" class="modal" @cancel=${(e) => e.preventDefault()}>
+      <dialog id="sessionsDialog" class="modal">
         <h3>Sessions</h3>
         <table class="table">
           <thead>
