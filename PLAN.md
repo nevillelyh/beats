@@ -10,7 +10,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 
 1. Main table rows are **licks** (aggregated from sessions), not sessions.
 2. CSV import ignores derived fields (`Best`, `%`, `First`, `Last`) and recomputes them from sessions.
-3. Disable add-session when `best >= goal` or when a session already exists for today.
+3. Disable add-session only when `best >= goal`; if today already exists, saving updates today's session instead.
 4. "Today" uses the **device local timezone**.
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
@@ -114,7 +114,8 @@ Provide `scripts/import_csv.py`:
 - `POST /api/licks/:lickId/sessions`
   - Body: `{ rpm }`
   - Client sends `X-Local-Date: YYYY-MM-DD`
-  - Reject if today already exists, `best >= goal`, or `rpm` is outside `[min, goal]`
+  - Reject if `best >= goal` or `rpm` is outside `[min, goal]`
+  - If a session already exists for today, overwrite that day's RPM instead of creating a second row
   - `min` is `1` when no previous session exists; otherwise `best + 1`
 - `GET /api/stats`
   - Returns per-day practice density:
@@ -211,7 +212,7 @@ Each lick row has:
   - Default sort: `date desc`
 
 - `+` (add session)
-  - Disabled when `best >= goal` or today session exists
+  - Disabled when `best >= goal`
   - Opens modal with:
     - Context lines:
       - `Lick: <name>`
@@ -238,7 +239,7 @@ Each lick row has:
     - Focus behavior:
       - desktop focuses the RPM numeric input when the dialog opens so stepper keyboard shortcuts work immediately
       - mobile does not focus the numeric input on open, to avoid showing the iOS virtual keyboard and shifting the viewport
-  - Submit creates today's session
+  - Submit creates today's session, or updates today's existing session when one is already present
 - `Edit` icon in row actions (before `...`)
   - Opens `Edit Lick` dialog for selected lick:
     - fields: `Lick`, `URL`, `Goal RPM`
@@ -336,9 +337,9 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 
 1. DB constraints enforce uniqueness and positive RPM/goal.
 2. Aggregates are correct for 0/1/N sessions.
-3. Add-session disable logic is correct for:
+3. Add-session behavior is correct for:
    - `best >= goal`
-   - today session already exists
+   - today session updates the existing row instead of being blocked
 4. Add-session range math is correct (`min = 1` or `best + 1`, bounded by goal), with API-side enforcement.
 5. Table sorting/filtering works for all columns.
 6. Artist column stays visible when artist filter is active.

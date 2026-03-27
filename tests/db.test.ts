@@ -7,6 +7,7 @@ import {
   createLicks,
   getProgressDistribution,
   getArtists,
+  getSessions,
   getStatsHistograms,
   getStatsBars,
   getStats,
@@ -89,13 +90,24 @@ describe("db behavior", () => {
     expect(rows[0].can_add_today).toBe(true);
   });
 
-  test("cannot add today when session exists", () => {
+  test("can still add today when a session exists and goal is not met", () => {
     const lickId = createLick(db, "Pat", "Alt phrase", 160);
     addSession(db, lickId, "2026-02-11", 140);
 
     const rows = getLicks(db, null, "artist", "asc", "2026-02-11");
-    expect(rows[0].can_add_today).toBe(false);
+    expect(rows[0].can_add_today).toBe(true);
     expect(hasSessionForDate(db, lickId, "2026-02-11")).toBe(true);
+  });
+
+  test("adding a session for the same day updates the existing session", () => {
+    const lickId = createLick(db, "Pat", "Alt phrase", 160);
+    const firstId = addSession(db, lickId, "2026-02-11", 140);
+    const secondId = addSession(db, lickId, "2026-02-11", 150);
+
+    const sessions = getSessions(db, lickId, "date", "desc");
+    expect(secondId).toBe(firstId);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]?.rpm).toBe(150);
   });
 
   test("cannot add when best meets goal", () => {

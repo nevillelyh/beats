@@ -828,7 +828,7 @@ class RpmApp extends LitElement {
                                       <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                         ...
                                       </button>
-                                      <button class="btn btn-small btn-primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
+                                      <button class="btn btn-small btn-primary" @click=${() => this.openAddSession(row)}>
                                         +
                                       </button>
                                     </div>
@@ -905,7 +905,7 @@ class RpmApp extends LitElement {
                                     <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                       ...
                                     </button>
-                                    <button class="btn btn-small btn-primary" ?disabled=${!row.can_add_today} @click=${() => this.openAddSession(row)}>
+                                    <button class="btn btn-small btn-primary" @click=${() => this.openAddSession(row)}>
                                       +
                                     </button>
                                   </div>

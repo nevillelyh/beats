@@ -13,7 +13,6 @@ import {
   getLicks,
   getSessions,
   getSessionRpmRange,
-  hasSessionForDate,
   initSchema,
   normalizeLocalDate,
   openDb,
@@ -222,9 +221,6 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const best = meta.best_rpm ?? 0;
       if (best >= meta.goal_rpm) {
         return badRequest("Cannot add session when best RPM already meets/exceeds goal");
-      }
-      if (hasSessionForDate(db, lickId, localDate)) {
-        return badRequest("Session already exists for today");
       }
       const range = getSessionRpmRange(best, meta.goal_rpm);
       if (rpm < range.min || rpm > range.max) {

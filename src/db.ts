@@ -307,9 +307,6 @@ export function getLicks(
       COUNT(s.id) AS session_count,
       CASE
         WHEN MAX(s.rpm) >= l.goal_rpm THEN 0
-        WHEN EXISTS (
-          SELECT 1 FROM sessions sx WHERE sx.lick_id = l.id AND sx.date = ?
-        ) THEN 0
         ELSE 1
       END AS can_add_today
     FROM licks l
@@ -324,14 +321,14 @@ export function getLicks(
     const sql = base.replace("%ARTIST_FILTER%", "");
     return db
       .query(sql)
-      .all(localDate)
+      .all()
       .map((r) => ({ ...r, can_add_today: Boolean((r as any).can_add_today) })) as LickAggregate[];
   }
 
   const sql = base.replace("%ARTIST_FILTER%", "WHERE a.id = ?");
   return db
     .query(sql)
-    .all(localDate, artistId)
+    .all(artistId)
     .map((r) => ({ ...r, can_add_today: Boolean((r as any).can_add_today) })) as LickAggregate[];
 }
 
@@ -372,7 +369,11 @@ export function addSession(
   if (!Number.isInteger(rpm) || rpm <= 0) {
     throw new Error("rpm must be a positive integer");
   }
-  db.query("INSERT INTO sessions(lick_id, date, rpm) VALUES (?, ?, ?)").run(
+  db.query(
+    `INSERT INTO sessions(lick_id, date, rpm)
+     VALUES (?, ?, ?)
+     ON CONFLICT(lick_id, date) DO UPDATE SET rpm = excluded.rpm`,
+  ).run(
     lickId,
     date,
     rpm,
