@@ -24,6 +24,7 @@ class RpmApp extends LitElement {
     addValue: { state: true },
     addMin: { state: true },
     addMax: { state: true },
+    addLickRows: { state: true },
     compact: { state: true },
     progressFilter: { state: true },
   };
@@ -50,6 +51,7 @@ class RpmApp extends LitElement {
     this.addValue = 0;
     this.addMin = 0;
     this.addMax = 0;
+    this.addLickRows = [this._createAddLickRow()];
     this.progressFilter = "all";
     this.compact = typeof window !== "undefined" ? window.innerWidth <= COMPACT_BREAKPOINT : false;
     this._onResize = () => {
@@ -378,12 +380,89 @@ class RpmApp extends LitElement {
     input.value = String(next);
   }
 
-  updateGoalValue() {
-    this._updateGoalInput("goalRpm", 1);
+  _createAddLickRow() {
+    return { lickName: "", goalRpm: "120" };
   }
 
-  adjustGoalValue(delta) {
-    this._adjustGoalInput("goalRpm", 1, delta);
+  resetAddLickRows() {
+    this.addLickRows = [this._createAddLickRow()];
+  }
+
+  _setAddLickRow(index, patch) {
+    this.addLickRows = this.addLickRows.map((row, rowIndex) =>
+      rowIndex === index ? { ...row, ...patch } : row,
+    );
+  }
+
+  updateAddLickName(index, event) {
+    this._setAddLickRow(index, { lickName: event.target.value });
+  }
+
+  updateAddLickGoal(index, event) {
+    const raw = event.target.value;
+    if (raw === "") {
+      this._setAddLickRow(index, { goalRpm: "" });
+      return;
+    }
+    const next = Number(raw);
+    if (!Number.isFinite(next)) {
+      return;
+    }
+    this._setAddLickRow(index, { goalRpm: String(Math.max(1, Math.trunc(next))) });
+  }
+
+  adjustAddLickGoal(index, delta) {
+    const current = Number(this.addLickRows[index]?.goalRpm || 0);
+    const base = Number.isFinite(current) && current > 0 ? current : 120;
+    this._setAddLickRow(index, { goalRpm: String(Math.max(1, base + delta)) });
+  }
+
+  addLickRow(index) {
+    const rows = [...this.addLickRows];
+    const nextIndex = index + 1;
+    rows.splice(nextIndex, 0, this._createAddLickRow());
+    this.addLickRows = rows;
+    requestAnimationFrame(() => {
+      const input = this.el(nextIndex === 0 ? "lickName" : `lickName-${nextIndex}`);
+      if (input instanceof HTMLInputElement) {
+        input.focus();
+      }
+    });
+  }
+
+  deleteAddLickRow(index) {
+    if (index === 0 || this.addLickRows.length <= 1) {
+      return;
+    }
+    this.addLickRows = this.addLickRows.filter((_, rowIndex) => rowIndex !== index);
+  }
+
+  addLickRowsValidationError() {
+    const populated = this.addLickRows.filter((row) => row.lickName.trim());
+    if (populated.length === 0) {
+      return "Enter at least one lick";
+    }
+    const invalidGoal = populated.find((row) => {
+      const goalRpm = Number(row.goalRpm);
+      return !Number.isInteger(goalRpm) || goalRpm <= 0;
+    });
+    if (invalidGoal) {
+      return "Each lick needs a positive integer Goal RPM";
+    }
+    return "";
+  }
+
+  _addLickRowKeydown(index, adjustFn) {
+    return (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        this.addLickRow(index);
+        return;
+      }
+      if (adjustFn) {
+        this._stepperKeydown(adjustFn).call(this, event);
+      }
+    };
   }
 
   async submitAddSession() {
@@ -410,22 +489,28 @@ class RpmApp extends LitElement {
   async submitAddLick() {
     const activeArtist = this.artists.find((artist) => String(artist.id) === this.filterArtistId);
     const artistName = activeArtist?.name || "";
-    const lickName = this.el("lickName").value.trim();
-    const url = this.el("lickUrl").value.trim();
-    const goalRpm = Number(this.el("goalRpm").value);
+    const validationError = this.addLickRowsValidationError();
+    const licks = this.addLickRows
+      .map((row) => ({
+        lickName: row.lickName.trim(),
+        goalRpm: Number(row.goalRpm),
+      }))
+      .filter((row) => row.lickName);
     if (!artistName) {
       this.error = "Select an artist before adding a lick";
+      return;
+    }
+    if (validationError) {
+      this.error = validationError;
       return;
     }
 
     try {
       await this.api("/api/licks", {
         method: "POST",
-        body: JSON.stringify({ artistName, lickName, goalRpm, url }),
+        body: JSON.stringify({ artistName, licks }),
       });
-      this.el("lickName").value = "";
-      this.el("lickUrl").value = "";
-      this.el("goalRpm").value = "";
+      this.resetAddLickRows();
       this.closeDialog("addLickDialog");
       await this.loadAll();
     } catch (err) {
@@ -487,10 +572,7 @@ class RpmApp extends LitElement {
       this.error = "Select an artist first";
       return;
     }
-    const goalInput = this.el("goalRpm");
-    if (goalInput && !goalInput.value) {
-      goalInput.value = "120";
-    }
+    this.resetAddLickRows();
     this.openDialog("addLickDialog", { desktopFocusId: "lickName" });
   }
 
@@ -649,7 +731,7 @@ class RpmApp extends LitElement {
             </div>
           </div>
           ${this.filterArtistId
-            ? html`<button class="btn btn-primary" @click=${this.openAddLickDialog}>+ Add Lick</button>`
+            ? html`<button class="btn btn-primary" @click=${this.openAddLickDialog}>Add Licks</button>`
             : html`<button class="btn btn-primary" @click=${this.openAddArtistDialog}>+ Add Artist</button>`}
         </div>
 
@@ -893,31 +975,60 @@ class RpmApp extends LitElement {
         </form>
       </dialog>
 
-      <dialog id="addLickDialog" class="modal">
+      <dialog id="addLickDialog" class="modal add-lick-modal">
         <form @submit=${this._onFormSubmit(this.submitAddLick)}>
-          <h3>Add Lick</h3>
+          <h3>Add Licks</h3>
           <div class="range-grid">
             <div class="muted">
               Artist:
               ${this.artists.find((artist) => String(artist.id) === this.filterArtistId)?.name || "-"}
             </div>
-            <label for="lickName">Lick</label>
-            <input id="lickName" />
-            <label for="lickUrl">URL (optional)</label>
-            <input id="lickUrl" type="url" placeholder="https://..." />
-            <label for="goalRpm">Goal RPM</label>
-            <div class="rpm-stepper">
-              ${this.renderStepperButton("-", false, this.adjustGoalValue, -5)}
-              <input
-                id="goalRpm"
-                class="rpm-number-input"
-                type="number"
-                min="0"
-                step="1"
-                @input=${this.updateGoalValue}
-                @keydown=${this._stepperKeydown(this.adjustGoalValue)}
-              />
-              ${this.renderStepperButton("+", false, this.adjustGoalValue, 5)}
+            <div class="add-lick-rows">
+              <div class="add-lick-row-labels">
+                <span>Lick</span>
+                <span>Goal RPM</span>
+                <button type="button" class="btn btn-primary row-action-btn" aria-label="Add another lick row" @click=${() => this.addLickRow(this.addLickRows.length - 1)}>+</button>
+              </div>
+              ${this.addLickRows.map((row, index) => {
+                const rowGoal = Number(row.goalRpm || 0);
+                const lickId = index === 0 ? "lickName" : `lickName-${index}`;
+                const goalId = index === 0 ? "goalRpm" : `goalRpm-${index}`;
+                return html`
+                  <div class="add-lick-row">
+                    <input
+                      id=${lickId}
+                      aria-label=${`Lick ${index + 1}`}
+                      .value=${row.lickName}
+                      @input=${(event) => this.updateAddLickName(index, event)}
+                      @keydown=${this._addLickRowKeydown(index)}
+                    />
+                    <div class="rpm-stepper add-lick-goal-stepper">
+                      ${this.renderStepperButton("-", rowGoal <= 1, (delta) => this.adjustAddLickGoal(index, delta), -5)}
+                      <input
+                        id=${goalId}
+                        class="rpm-number-input"
+                        type="number"
+                        min="1"
+                        step="1"
+                        aria-label=${`Goal RPM ${index + 1}`}
+                        .value=${row.goalRpm}
+                        @input=${(event) => this.updateAddLickGoal(index, event)}
+                        @keydown=${this._addLickRowKeydown(index, (delta) => this.adjustAddLickGoal(index, delta))}
+                      />
+                      ${this.renderStepperButton("+", false, (delta) => this.adjustAddLickGoal(index, delta), 5)}
+                    </div>
+                    <button
+                      type="button"
+                      class="btn row-action-btn"
+                      aria-label=${index === 0 ? "Cannot delete the first lick row" : "Delete lick row"}
+                      ?disabled=${index === 0}
+                      @click=${() => this.deleteAddLickRow(index)}
+                    >
+                      -
+                    </button>
+                  </div>
+                `;
+              })}
             </div>
           </div>
           <div class="dialog-actions">

@@ -141,7 +141,7 @@ Provide `scripts/import_csv.py`:
 ### Header actions
 
 - If no artist filter is active: show `+ Add Artist`.
-- If artist filter is active: show `+ Add Lick`.
+- If artist filter is active: show `Add Licks`.
 
 ### Main table
 
@@ -293,21 +293,23 @@ Each lick row has:
   - `Days To Completion` histogram
   - Layout uses 2 graphs per row on wide screens.
 
-### Add lick
+### Add licks
 
 Shown only when artist filter is active. Modal uses currently selected artist and includes:
 
-- Lick name input
-- Optional URL input
-- Goal RPM stepper: `- [RPM number] +` (increment 5, minimum 1)
-- Default Goal RPM is `120` when opening the dialog
+- Repeatable rows with `Lick` and inline `Goal RPM` controls on the same row
+- Header-row `+` button to add another row
+- Per-row `-` button to delete that row; first row delete stays disabled so at least one row always remains
+- No URL input in the add flow
+- Default Goal RPM is `120` for each new row
 - Keyboard UX:
-  - `Enter` submits the dialog
+  - `Enter` adds a new row instead of submitting
   - `Esc` closes the dialog
   - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
 - Focus behavior:
-  - desktop focuses the Lick input when the dialog opens
-  - mobile does not focus the Goal RPM input on open, to avoid iOS viewport shifts from the virtual keyboard
+  - desktop focuses the first Lick input when the dialog opens
+  - adding a row focuses the new Lick input
+  - mobile does not autofocus dialog inputs to avoid iOS viewport shifts from the virtual keyboard
 - Goal RPM input accepts any integer value (`step=1`) while the stepper buttons and keyboard shortcuts still adjust by `5`
 
 ### Add artist
@@ -351,7 +353,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
     - logs malformed pairs
 11. Device-local date controls "today" behavior.
 12. `+ Add Artist` is shown only when no artist filter is active and creates artists.
-13. `+ Add Lick` is shown only when artist filter is active and binds to current artist.
+13. `Add Licks` is shown only when artist filter is active and binds to current artist.
 14. Optional lick URL is stored and lick name opens URL in a new tab when present.
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
 16. Docker image builds and app starts on port `3000`.
@@ -361,6 +363,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 20. Stats page uses a 2-per-row chart layout on wide screens.
 21. Artist edit flow enforces unique artist names.
 22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
+23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
 
 ## Implementation Milestones
 
@@ -369,12 +372,12 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 3. API routes + validation + aggregate queries.
 4. Main table UI (fetch, filter, sort).
 5. Session modal and add-session modal.
-6. Add-lick modal.
+6. Add-licks modal with repeatable rows.
 7. Mobile wrapped-row layout and chip-based sorting.
 8. Progress filter chips + metrics row (`New/In progress/Done` + `Average %`).
 9. URL-state persistence in main view.
-10. Conditional add flows (`+ Add Artist` / `+ Add Lick`) and dialogs.
-11. Optional lick URL data flow (schema, API, add-lick form, link rendering).
+10. Conditional add flows (`+ Add Artist` / `Add Licks`) and dialogs.
+11. Optional lick URL data flow (schema, API, lick edit form, link rendering).
 12. CSV importer script enhancements.
 13. Dockerfile + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.

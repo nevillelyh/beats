@@ -345,6 +345,48 @@ body {
   gap: 10px;
 }
 
+.add-lick-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.add-lick-row,
+.add-lick-row-labels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 148px 36px;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-lick-row-labels {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rpm-stepper.add-lick-goal-stepper .rpm-number-input {
+  min-height: 36px;
+  width: 64px;
+  font-size: inherit;
+  font-weight: 400;
+}
+
+.add-lick-goal-stepper .btn-step {
+  min-width: 36px;
+  min-height: 36px;
+  font-size: 1rem;
+}
+
+.row-action-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .rpm-stepper {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -488,6 +530,11 @@ select {
   width: min(560px, 92vw);
 }
 
+.add-lick-modal {
+  max-width: 720px;
+  width: min(720px, 92vw);
+}
+
 .modal::backdrop {
   background: rgba(16, 24, 40, 0.35);
 }
@@ -514,5 +561,10 @@ select {
   }
   .toolbar-row select {
     min-width: 84px;
+  }
+  .add-lick-row,
+  .add-lick-row-labels {
+    grid-template-columns: minmax(0, 1fr) 148px 36px;
+    gap: 8px;
   }
 }

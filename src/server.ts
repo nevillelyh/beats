@@ -3,6 +3,7 @@ import {
   addSession,
   createArtist,
   createLick,
+  createLicks,
   getProgressDistribution,
   getArtists,
   getStatsHistograms,
@@ -137,12 +138,35 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
         lickName?: string;
         goalRpm?: number;
         url?: string;
+        licks?: Array<{
+          lickName?: string;
+          goalRpm?: number;
+          url?: string;
+        }>;
       };
-      if (!body.artistName || !body.lickName || !body.goalRpm) {
+      if (!body.artistName) {
+        return badRequest("artistName is required");
+      }
+      if (Array.isArray(body.licks)) {
+        if (body.licks.length === 0) {
+          return badRequest("At least one lick is required");
+        }
+        const ids = createLicks(
+          db,
+          body.artistName,
+          body.licks.map((lick) => ({
+            lickName: lick.lickName || "",
+            goalRpm: lick.goalRpm ?? 0,
+            lickUrl: lick.url,
+          })),
+        );
+        return json({ ids, id: ids[0] }, 201);
+      }
+      if (!body.lickName || !body.goalRpm) {
         return badRequest("artistName, lickName, and goalRpm are required");
       }
       const id = createLick(db, body.artistName, body.lickName, body.goalRpm, body.url);
-      return json({ id }, 201);
+      return json({ id, ids: [id] }, 201);
     } catch (err) {
       return handleDbError(err, "Lick already exists for this artist");
     }

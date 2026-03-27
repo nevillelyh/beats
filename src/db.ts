@@ -82,6 +82,12 @@ export type SessionRpmRange = {
   max: number;
 };
 
+export type CreateLickInput = {
+  lickName: string;
+  goalRpm: number;
+  lickUrl?: string;
+};
+
 const SORT_MAP: Record<string, string> = {
   artist: "artist_name",
   lick: "lick_name",
@@ -164,15 +170,38 @@ export function createLick(
   goalRpm: number,
   lickUrl?: string,
 ): number {
+  return createLicks(db, artistName, [{ lickName, goalRpm, lickUrl }])[0];
+}
+
+export function createLicks(
+  db: Database,
+  artistName: string,
+  licks: CreateLickInput[],
+): number[] {
   const cleanArtist = artistName.trim();
-  const cleanLick = lickName.trim();
-  if (!cleanArtist || !cleanLick) {
-    throw new Error("artistName and lickName are required");
+  if (!cleanArtist) {
+    throw new Error("artistName is required");
   }
-  if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
-    throw new Error("goalRpm must be a positive integer");
+  if (!Array.isArray(licks) || licks.length === 0) {
+    throw new Error("At least one lick is required");
   }
-  const cleanUrl = lickUrl?.trim() ? lickUrl.trim() : null;
+
+  const prepared = licks.map(({ lickName, goalRpm, lickUrl }) => {
+    const cleanLick = lickName.trim();
+    if (!cleanLick) {
+      throw new Error("lickName is required");
+    }
+    if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
+      throw new Error("goalRpm must be a positive integer");
+    }
+    return {
+      lickName: cleanLick,
+      goalRpm,
+      lickUrl: lickUrl?.trim() ? lickUrl.trim() : null,
+    };
+  });
+
+  const createdIds: number[] = [];
 
   db.transaction(() => {
     db.query("INSERT OR IGNORE INTO artists(name) VALUES (?)").run(cleanArtist);
@@ -183,27 +212,24 @@ export function createLick(
       throw new Error("Failed to resolve artist");
     }
 
-    db.query("INSERT INTO licks(artist_id, name, url, goal_rpm) VALUES (?, ?, ?, ?)").run(
-      row.id,
-      cleanLick,
-      cleanUrl,
-      goalRpm,
+    const insertLick = db.query("INSERT INTO licks(artist_id, name, url, goal_rpm) VALUES (?, ?, ?, ?)");
+    const findCreated = db.query(
+      `SELECT id
+       FROM licks
+       WHERE artist_id = ? AND name = ?`,
     );
+
+    for (const lick of prepared) {
+      insertLick.run(row.id, lick.lickName, lick.lickUrl, lick.goalRpm);
+      const created = findCreated.get(row.id, lick.lickName) as { id: number } | null;
+      if (!created) {
+        throw new Error("Failed to create lick");
+      }
+      createdIds.push(created.id);
+    }
   })();
 
-  const created = db
-    .query(
-      `SELECT l.id
-       FROM licks l
-       JOIN artists a ON a.id = l.artist_id
-       WHERE a.name = ? AND l.name = ?`,
-    )
-    .get(cleanArtist, cleanLick) as { id: number } | null;
-
-  if (!created) {
-    throw new Error("Failed to create lick");
-  }
-  return created.id;
+  return createdIds;
 }
 
 export function updateLick(

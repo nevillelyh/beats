@@ -4,6 +4,7 @@ import {
   addSession,
   createArtist,
   createLick,
+  createLicks,
   getProgressDistribution,
   getArtists,
   getStatsHistograms,
@@ -46,6 +47,20 @@ describe("db behavior", () => {
     expect(rows[0].lick_name).toBe("Line A v2");
     expect(rows[0].lick_url).toBe("https://new.example");
     expect(rows[0].goal_rpm).toBe(150);
+  });
+
+  test("create licks adds multiple licks in one transaction", () => {
+    const ids = createLicks(db, "Pat", [
+      { lickName: "Line A", goalRpm: 120 },
+      { lickName: "Line B", goalRpm: 135 },
+    ]);
+
+    const rows = getLicks(db, null, "lick", "asc", "2026-02-11");
+    expect(ids).toHaveLength(2);
+    expect(rows.map((row) => ({ name: row.lick_name, goal: row.goal_rpm }))).toEqual([
+      { name: "Line A", goal: 120 },
+      { name: "Line B", goal: 135 },
+    ]);
   });
 
   test("update lick enforces unique artist+lick name", () => {
