@@ -19,11 +19,11 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and push
+      - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            gitea.home.lyh.me/neville/rpms:latest
-            gitea.home.lyh.me/neville/rpms:${{ github.sha }}
+            gitea.home.lyh.me/${{ github.repository }}:latest
+            gitea.home.lyh.me/${{ github.repository }}:${{ github.sha }}
