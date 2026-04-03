@@ -27,6 +27,7 @@ class RpmApp extends LitElement {
     addLickRows: { state: true },
     compact: { state: true },
     progressFilter: { state: true },
+    lickFilter: { state: true },
   };
 
   createRenderRoot() {
@@ -53,6 +54,7 @@ class RpmApp extends LitElement {
     this.addMax = 0;
     this.addLickRows = [this._createAddLickRow()];
     this.progressFilter = "all";
+    this.lickFilter = "";
     this.compact = typeof window !== "undefined" ? window.innerWidth <= COMPACT_BREAKPOINT : false;
     this._onResize = () => {
       const next = window.innerWidth <= COMPACT_BREAKPOINT;
@@ -70,6 +72,24 @@ class RpmApp extends LitElement {
     super.connectedCallback();
     window.addEventListener("resize", this._onResize);
     window.addEventListener("popstate", this._onPopState);
+    this._onKeydown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "f") {
+        event.preventDefault();
+        const input = this.el("lickSearch");
+        if (input instanceof HTMLInputElement) {
+          input.focus();
+          input.select();
+        }
+      }
+      if (event.key === "Escape") {
+        const input = this.el("lickSearch");
+        if (input instanceof HTMLInputElement && document.activeElement === input) {
+          this.lickFilter = "";
+          input.blur();
+        }
+      }
+    };
+    window.addEventListener("keydown", this._onKeydown);
     this.applyUrlState(new URLSearchParams(window.location.search));
     this.loadAll();
   }
@@ -77,6 +97,7 @@ class RpmApp extends LitElement {
   disconnectedCallback() {
     window.removeEventListener("resize", this._onResize);
     window.removeEventListener("popstate", this._onPopState);
+    window.removeEventListener("keydown", this._onKeydown);
     super.disconnectedCallback();
   }
 
@@ -257,6 +278,10 @@ class RpmApp extends LitElement {
   setProgressFilter(filter) {
     this.progressFilter = this.progressFilter === filter ? "all" : filter;
     this.syncUrlState();
+  }
+
+  onLickFilter(event) {
+    this.lickFilter = event.target.value;
   }
 
   isDoneRow(row) {
@@ -717,6 +742,12 @@ class RpmApp extends LitElement {
         return this.isInProgressRow(row);
       }
       return this.isDoneRow(row);
+    }).filter((row) => {
+      if (!this.lickFilter) {
+        return true;
+      }
+      const query = this.lickFilter.toLowerCase();
+      return row.lick_name.toLowerCase().includes(query) || row.artist_name.toLowerCase().includes(query);
     });
 
     return html`
@@ -748,6 +779,13 @@ class RpmApp extends LitElement {
                     </option>`,
                 )}
               </select>
+              <input
+                type="text"
+                id="lickSearch"
+                placeholder="Filter licks..."
+                .value=${this.lickFilter}
+                @input=${this.onLickFilter}
+              />
               ${this.filterArtistId
                 ? html`<button class="btn btn-small" @click=${this.openEditArtistDialog} aria-label="Edit artist" title="Edit artist">
                     ${this._renderPenIcon()}

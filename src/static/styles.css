@@ -522,6 +522,10 @@ select {
   min-height: 36px;
 }
 
+#lickSearch {
+  width: 160px;
+}
+
 .modal {
   border: 1px solid var(--line);
   border-radius: 14px;

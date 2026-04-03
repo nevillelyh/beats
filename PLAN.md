@@ -161,6 +161,12 @@ Rules:
 
 - Filter by artist.
 - Artist filter default option label is `All`.
+- Client-side lick text filter:
+  - Text input adjacent to artist dropdown.
+  - Filters by lick name or artist name (case-insensitive).
+  - Keyboard shortcuts:
+    - `Cmd/Ctrl+F` focuses and selects the filter input.
+    - `Esc` clears the filter and blurs the input.
 - Sort by any column.
 - Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
