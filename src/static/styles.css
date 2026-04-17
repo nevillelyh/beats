@@ -50,8 +50,13 @@ body {
   flex-wrap: wrap;
 }
 
-.page-tabs .btn {
+.page-tabs .btn,
+.page-tabs button.btn {
   text-decoration: none;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
 }
 
 .card {
@@ -334,6 +339,18 @@ body {
   color: var(--muted);
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .row-empty {
   text-align: center;
   color: var(--muted);
@@ -543,6 +560,136 @@ select {
   background: rgba(16, 24, 40, 0.35);
 }
 
+.metronome-modal {
+  max-width: 460px;
+  width: min(460px, 94vw);
+  text-align: center;
+}
+
+.metronome-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.metronome-header h3 {
+  margin: 0;
+  flex: 1;
+  padding-left: 38px;
+}
+
+.metronome-icon-button {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.metronome-controls {
+  display: grid;
+  gap: 16px;
+}
+
+.metronome-toggle-strip {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: center;
+  align-items: start;
+  gap: 14px;
+}
+
+.metronome-toggle-row {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.metronome-toggle-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metronome-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.metronome-number-row {
+  display: grid;
+  grid-template-columns: repeat(2, 44px) 68px repeat(2, 44px);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.metronome-step {
+  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.15rem;
+}
+
+.metronome-bpm-display {
+  align-items: center;
+  border: 1px solid #c7d2df;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  display: inline-flex;
+  justify-content: center;
+  width: 68px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  min-height: 44px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metronome-start {
+  min-height: 44px;
+  width: 52px;
+  padding: 0;
+  font-size: 1.08rem;
+  line-height: 1;
+}
+
+.metronome-bottom-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 8px;
+}
+
+.metronome-dots {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 4px 0;
+}
+
+.metronome-dot {
+  width: 38px;
+  height: 38px;
+  border: 2px solid #9fb0c3;
+  border-radius: 50%;
+  background: #eef3f8;
+  transition: background 80ms ease, border-color 80ms ease, transform 80ms ease;
+}
+
+.metronome-dot-active {
+  background: #0f6f9f;
+  border-color: #0d5f87;
+  transform: scale(1.12);
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -570,5 +717,17 @@ select {
   .add-lick-row-labels {
     grid-template-columns: minmax(0, 1fr) 148px 36px;
     gap: 8px;
+  }
+  .metronome-toggle-strip {
+    grid-template-columns: 1fr;
+  }
+  .metronome-number-row {
+    grid-template-columns: repeat(5, minmax(42px, 1fr));
+  }
+  .metronome-bpm-display {
+    width: 100%;
+  }
+  .metronome-dots {
+    gap: 14px;
   }
 }

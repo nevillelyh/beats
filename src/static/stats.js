@@ -1,3 +1,5 @@
+import { initMetronomeButtons } from "/metronome.js";
+
 const HEATMAP_DEFAULT_WEEKS = 53;
 const BARS_HEIGHT = 180;
 const BARS_RANGE_OPTIONS = [
@@ -772,4 +774,5 @@ async function loadStats() {
   }
 }
 
+initMetronomeButtons();
 loadStats();

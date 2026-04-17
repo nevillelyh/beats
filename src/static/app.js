@@ -1,4 +1,5 @@
 import { LitElement, html } from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
+import { openMetronome } from "/metronome.js";
 
 const COMPACT_BREAKPOINT = 720;
 const VALID_SORT_OPTIONS = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
@@ -759,6 +760,7 @@ class RpmApp extends LitElement {
               <a class="btn btn-small btn-primary" href="/">Tracker</a>
               <a class="btn btn-small" href="/trends.html">Trends</a>
               <a class="btn btn-small" href="/stats.html">Stats</a>
+              <button type="button" class="btn btn-small" @click=${openMetronome}>Metronome</button>
             </div>
           </div>
           ${this.filterArtistId

@@ -16,6 +16,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
 8. Use 3 top-level tabs: `Tracker` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
+9. The shared top navigation includes an in-page metronome popup on all pages.
 
 ## Tech Stack
 
@@ -143,6 +144,30 @@ Provide `scripts/import_csv.py`:
 
 - If no artist filter is active: show `+ Add Artist`.
 - If artist filter is active: show `Add Licks`.
+- Top navigation includes `Metronome` next to `Tracker`, `Trends`, and `Stats`; it opens a popup in the current page.
+
+### Metronome popup
+
+- Available from every top-level page.
+- Opens as an in-page dialog and stops playback when closed.
+- Default tempo is `120` BPM.
+- Tempo row:
+  - controls are `-- - [BPM display] + ++`
+  - BPM display is read-only and narrow enough for 3 digits
+  - `--` / `++` adjust by `5`
+  - `-` / `+` adjust by `1`
+- Keyboard UX while the popup is open:
+  - `Space` starts/stops playback
+  - `ArrowUp` / `ArrowDown` adjust BPM by `1`
+  - `Shift+ArrowUp` / `Shift+ArrowDown` adjust BPM by `5`
+- Top controls use one row with:
+  - time signature toggle group: `3/4`, `4/4` (default `4/4`)
+  - Rhythm toggle group: `1/4` (default), `1/8`, `1/8T`, `1/16`
+- Bottom row:
+  - beat dots stay centered and show `4` dots for `4/4`, `3` dots for `3/4`
+  - the active beat dot highlights while running
+  - start/stop uses media-player icons and is fixed to the right side of the row, independent of dot count
+- Sound uses Web Audio blips, with a higher-pitched and louder downbeat.
 
 ### Main table
 
@@ -372,6 +397,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 21. Artist edit flow enforces unique artist names.
 22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
+24. Metronome popup is available on Tracker/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
 
 ## Implementation Milestones
 
@@ -391,6 +417,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 14. Test suite and edge-case hardening.
 15. Split analytics UI into `Trends` (`/trends.html`) and `Stats` (`/stats.html`) with shared tab navigation.
 16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers, consolidated stepper/button helpers and progress predicates, unified repeated stats chart scaffolding, and removed unused stats CSS blocks).
+17. Shared metronome popup in top navigation with Web Audio playback, beat visualization, and keyboard controls.
 
 ## Reference Docs
 
