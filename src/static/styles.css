@@ -561,9 +561,14 @@ select {
 }
 
 .metronome-modal {
-  max-width: 460px;
-  width: min(460px, 94vw);
+  max-width: 380px;
+  width: min(380px, 94vw);
   text-align: center;
+}
+
+.add-session-modal {
+  max-width: 420px;
+  width: min(420px, 94vw);
 }
 
 .metronome-header {
@@ -595,12 +600,26 @@ select {
   gap: 16px;
 }
 
+.metronome-inline {
+  display: block;
+  outline: none;
+}
+
+.add-session-metronome {
+  display: block;
+}
+
+.add-session-metronome:focus,
+.add-session-metronome:focus-visible {
+  outline: none;
+}
+
 .metronome-toggle-strip {
   display: grid;
   grid-template-columns: auto auto;
   justify-content: center;
   align-items: start;
-  gap: 14px;
+  gap: 10px;
 }
 
 .metronome-toggle-row {
@@ -620,7 +639,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .metronome-number-row {
@@ -635,7 +654,14 @@ select {
   padding: 0;
   min-width: 44px;
   min-height: 44px;
-  font-size: 1.15rem;
+}
+
+.metronome-step-icon {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  display: block;
+  margin: 0 auto;
 }
 
 .metronome-bpm-display {

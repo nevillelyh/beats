@@ -25,6 +25,7 @@ class RpmApp extends LitElement {
     addValue: { state: true },
     addMin: { state: true },
     addMax: { state: true },
+    addSessionSaveAttempted: { state: true },
     addLickRows: { state: true },
     compact: { state: true },
     progressFilter: { state: true },
@@ -53,6 +54,7 @@ class RpmApp extends LitElement {
     this.addValue = 0;
     this.addMin = 0;
     this.addMax = 0;
+    this.addSessionSaveAttempted = false;
     this.addLickRows = [this._createAddLickRow()];
     this.progressFilter = "all";
     this.lickFilter = "";
@@ -74,6 +76,9 @@ class RpmApp extends LitElement {
     window.addEventListener("resize", this._onResize);
     window.addEventListener("popstate", this._onPopState);
     this._onKeydown = (event) => {
+      if (this.routeAddSessionMetronomeKeydown(event)) {
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key === "f") {
         event.preventDefault();
         const input = this.el("lickSearch");
@@ -327,14 +332,11 @@ class RpmApp extends LitElement {
     this.activeLick = lick;
     const min = lick.best_rpm === null ? 1 : lick.best_rpm + 1;
     const max = lick.goal_rpm;
-    const suggested =
-      lick.best_rpm === null
-        ? Math.ceil((lick.goal_rpm / 2) / 10) * 10
-        : Math.floor(lick.best_rpm / 5) * 5 + 5;
     this.addMin = min;
     this.addMax = max;
-    this.addValue = Math.max(min, Math.min(max, suggested));
-    this.openDialog("addSessionDialog", { desktopFocusId: "addRpmInput" });
+    this.addValue = Math.max(1, Math.min(max, lick.best_rpm ?? 1));
+    this.addSessionSaveAttempted = false;
+    this.openDialog("addSessionDialog", { desktopFocusId: "addSessionMetronome" });
   }
 
   updateAddValue(event) {
@@ -348,7 +350,33 @@ class RpmApp extends LitElement {
 
   adjustAddValue(delta) {
     const next = this.addValue + delta;
-    this.addValue = Math.max(this.addMin, Math.min(this.addMax, next));
+    this.addValue = Math.max(1, Math.min(this.addMax, next));
+  }
+
+  onAddSessionTempoChange(event) {
+    this.addValue = event.detail.bpm;
+    this.addSessionSaveAttempted = false;
+  }
+
+  stopAddSessionMetronome() {
+    this.el("addSessionMetronome")?.stop?.();
+  }
+
+  routeAddSessionMetronomeKeydown(event) {
+    const dialog = this.el("addSessionDialog");
+    if (!dialog?.open || event.defaultPrevented || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
+      return false;
+    }
+    const metronome = this.el("addSessionMetronome");
+    if (!metronome?.handleKeydown) {
+      return false;
+    }
+    metronome.handleKeydown(event);
+    return true;
+  }
+
+  onAddSessionDialogKeydown(event) {
+    this.routeAddSessionMetronomeKeydown(event);
   }
 
   _stepperButtonClass(isDisabled) {
@@ -380,8 +408,11 @@ class RpmApp extends LitElement {
     if (!Number.isInteger(this.addValue)) {
       return "RPM must be an integer";
     }
-    if (this.addValue < this.addMin || this.addValue > this.addMax) {
-      return `RPM must be between ${this.addMin} and ${this.addMax}`;
+    if (this.activeLick?.best_rpm !== null && this.activeLick?.best_rpm !== undefined && this.addValue <= this.activeLick.best_rpm) {
+      return `RPM must be greater than current best (${this.activeLick.best_rpm})`;
+    }
+    if (this.addValue < 1 || this.addValue > this.addMax) {
+      return `RPM must be between 1 and ${this.addMax}`;
     }
     return "";
   }
@@ -497,6 +528,7 @@ class RpmApp extends LitElement {
     }
     const addError = this.addValueValidationError();
     if (addError) {
+      this.addSessionSaveAttempted = true;
       this.error = addError;
       return;
     }
@@ -722,6 +754,9 @@ class RpmApp extends LitElement {
   render() {
     const addDisabledByRange = this.addMin > this.addMax;
     const addValidationError = addDisabledByRange ? "" : this.addValueValidationError();
+    const showAddValidationError =
+      addValidationError
+      && (this.addSessionSaveAttempted || !addValidationError.startsWith("RPM must be greater than current best"));
     const newCount = this.licks.filter((row) => row.session_count === 0).length;
     const inProgressCount = this.licks.filter((row) => this.isInProgressRow(row)).length;
     const doneCount = this.licks.filter((row) => this.isDoneRow(row)).length;
@@ -980,7 +1015,12 @@ class RpmApp extends LitElement {
         </div>
       </dialog>
 
-      <dialog id="addSessionDialog" class="modal">
+      <dialog
+        id="addSessionDialog"
+        class="modal add-session-modal"
+        @close=${this.stopAddSessionMetronome}
+        @keydown=${this.onAddSessionDialogKeydown}
+      >
         <form @submit=${this._onFormSubmit(this.submitAddSession)}>
           <h3>Add Session</h3>
           <div class="range-grid">
@@ -988,25 +1028,18 @@ class RpmApp extends LitElement {
               Lick:
               ${this.activeLick?.lick_name || "-"}
             </div>
-            <div class="muted">Best: ${this.activeLick?.best_rpm === null ? "None" : (this.activeLick?.best_rpm ?? "-")}</div>
-            <div class="muted">Goal: ${this.activeLick?.goal_rpm ?? "-"}</div>
-            ${addValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
-            <div class="rpm-stepper">
-              ${this.renderStepperButton("-", addDisabledByRange || this.addValue <= this.addMin, this.adjustAddValue, -5)}
-              <input
-                id="addRpmInput"
-                class="rpm-number-input"
-                min=${this.addMin}
-                max=${this.addMax}
-                step="1"
-                type="number"
-                .value=${String(this.addValue)}
-                ?disabled=${addDisabledByRange}
-                @input=${this.updateAddValue}
-                @keydown=${this._stepperKeydown(this.adjustAddValue, function () { return this.addMin > this.addMax; })}
-              />
-              ${this.renderStepperButton("+", addDisabledByRange || this.addValue >= this.addMax, this.adjustAddValue, 5)}
+            <div class="muted">
+              Best: ${this.activeLick?.best_rpm === null ? "None" : (this.activeLick?.best_rpm ?? "-")}
+              &nbsp; Goal: ${this.activeLick?.goal_rpm ?? "-"}
             </div>
+            ${showAddValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
+            <rpm-metronome
+              id="addSessionMetronome"
+              class="add-session-metronome"
+              inline
+              bpm=${this.addValue}
+              @bpm-change=${this.onAddSessionTempoChange}
+            ></rpm-metronome>
           </div>
           <div class="dialog-actions">
             <button type="button" class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>

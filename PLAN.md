@@ -152,10 +152,10 @@ Provide `scripts/import_csv.py`:
 - Opens as an in-page dialog and stops playback when closed.
 - Default tempo is `120` BPM.
 - Tempo row:
-  - controls are `-- - [BPM display] + ++`
+  - controls are double-left, single-left, `[BPM display]`, single-right, double-right triangle buttons
   - BPM display is read-only and narrow enough for 3 digits
-  - `--` / `++` adjust by `5`
-  - `-` / `+` adjust by `1`
+  - double-triangle controls adjust by `5`
+  - single-triangle controls adjust by `1`
 - Keyboard UX while the popup is open:
   - `Space` starts/stops playback
   - `ArrowUp` / `ArrowDown` adjust BPM by `1`
@@ -168,6 +168,7 @@ Provide `scripts/import_csv.py`:
   - the active beat dot highlights while running
   - start/stop uses media-player icons and is fixed to the right side of the row, independent of dot count
 - Sound uses Web Audio blips, with a higher-pitched and louder downbeat.
+- Audio starts from direct pointer/touch gestures and explicitly unlocks/resumes Web Audio for mobile Safari compatibility.
 
 ### Main table
 
@@ -248,29 +249,28 @@ Each lick row has:
   - Opens modal with:
     - Context lines:
       - `Lick: <name>`
-      - `Best: <rpm>` (`None` when no prior session exists)
-      - `Goal: <rpm>`
-    - Stepper controls: `- [RPM number] +`
+      - `Best: <rpm>` (`None` when no prior session exists) and `Goal: <rpm>` on the same line
+    - Inline metronome controls, without the standalone metronome title/header
   - Range:
-    - `min = 1` if no previous session exists, else `best + 1`
+    - Practice tempo can be reduced below the current best
+    - `min = 1`
     - `max = goal`
-    - If `min > max`, disable action
-    - `-` and `+` adjust by increments of `5`
-    - Default RPM value:
-      - if no previous session: `goal / 2`, rounded up to the next multiple of `10` (capped to range)
-      - otherwise: next multiple of `5` above `best` (capped to range)
-  - Input validation:
+    - Default RPM value is current best, or `1` when no previous session exists
+  - Save validation:
     - value must be an integer
-    - value must stay within `[min, max]`
+    - value must stay within `[1, goal]`
+    - value must be greater than current best when a prior best exists
+    - invalid values disable `Save`
+    - the `RPM must be greater than current best` alert is hidden on open and only shown after an attempted save
   - Keyboard UX:
     - `Enter` submits the dialog
     - `Esc` closes the dialog
-    - RPM input supports stepper keys:
-      - `ArrowUp` / `+` increase by `5`
-      - `ArrowDown` / `-` decrease by `5`
-    - Focus behavior:
-      - desktop focuses the RPM numeric input when the dialog opens so stepper keyboard shortcuts work immediately
-      - mobile does not focus the numeric input on open, to avoid showing the iOS virtual keyboard and shifting the viewport
+    - inline metronome supports:
+      - `Space` starts/stops playback
+      - `ArrowUp` / `ArrowDown` adjust BPM by `1`
+      - `Shift+ArrowUp` / `Shift+ArrowDown` adjust BPM by `5`
+    - Add Session routes arrow keys to the inline metronome while the dialog is open, even after focus moves elsewhere
+  - Closing the dialog stops the inline metronome
   - Submit creates today's session, or updates today's existing session when one is already present
 - `Edit` icon in row actions (before `...`)
   - Opens `Edit Lick` dialog for selected lick:
@@ -398,6 +398,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
 24. Metronome popup is available on Tracker/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
+25. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo beats best, and stops playback when the dialog closes.
 
 ## Implementation Milestones
 
@@ -418,6 +419,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 15. Split analytics UI into `Trends` (`/trends.html`) and `Stats` (`/stats.html`) with shared tab navigation.
 16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers, consolidated stepper/button helpers and progress predicates, unified repeated stats chart scaffolding, and removed unused stats CSS blocks).
 17. Shared metronome popup in top navigation with Web Audio playback, beat visualization, and keyboard controls.
+18. Inline add-session metronome with practice tempo controls and save-only new-best validation.
 
 ## Reference Docs
 

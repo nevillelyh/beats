@@ -1,5 +1,5 @@
 const DEFAULT_BPM = 120;
-const MIN_BPM = 20;
+const MIN_BPM = 1;
 const MAX_BPM = 300;
 const SIGNATURES = [3, 4];
 const SUBDIVISIONS = [
@@ -10,6 +10,8 @@ const SUBDIVISIONS = [
 ];
 
 class RpmMetronome extends HTMLElement {
+  static observedAttributes = ["bpm"];
+
   constructor() {
     super();
     this.bpm = DEFAULT_BPM;
@@ -20,13 +22,27 @@ class RpmMetronome extends HTMLElement {
     this.subdivisionIndex = 0;
     this.timer = null;
     this.audioContext = null;
+    this._onHostKeydown = (event) => this.handleKeydown(event);
   }
 
   connectedCallback() {
+    this.addEventListener("keydown", this._onHostKeydown);
+    this.readBpmAttribute();
     this.render();
   }
 
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (name !== "bpm" || oldValue === newValue) {
+      return;
+    }
+    this.readBpmAttribute();
+    if (this.isConnected) {
+      this.render();
+    }
+  }
+
   disconnectedCallback() {
+    this.removeEventListener("keydown", this._onHostKeydown);
     this.stop();
   }
 
@@ -47,19 +63,36 @@ class RpmMetronome extends HTMLElement {
     this.querySelector("dialog")?.close();
   }
 
-  setBpm(value, shouldRender = true) {
+  isInline() {
+    return this.hasAttribute("inline");
+  }
+
+  readBpmAttribute() {
+    if (this.hasAttribute("bpm")) {
+      this.bpm = this.normalizeBpm(this.getAttribute("bpm"));
+    }
+  }
+
+  normalizeBpm(value) {
     const next = Number(value);
     if (!Number.isFinite(next)) {
-      this.bpm = DEFAULT_BPM;
-    } else {
-      this.bpm = Math.max(MIN_BPM, Math.min(MAX_BPM, Math.trunc(next)));
+      return DEFAULT_BPM;
     }
+    return Math.max(MIN_BPM, Math.min(MAX_BPM, Math.trunc(next)));
+  }
+
+  setBpm(value, shouldRender = true) {
+    this.bpm = this.normalizeBpm(value);
     if (shouldRender) {
       this.render();
     }
     if (this.running) {
       this.restartTimer();
     }
+    this.dispatchEvent(new CustomEvent("bpm-change", {
+      detail: { bpm: this.bpm },
+      bubbles: true,
+    }));
   }
 
   adjustBpm(delta) {
@@ -99,14 +132,14 @@ class RpmMetronome extends HTMLElement {
     if (this.running) {
       this.stop();
     } else {
-      this.start();
+      void this.start();
     }
   }
 
-  start() {
-    this.ensureAudio();
-    if (this.audioContext?.state === "suspended") {
-      this.audioContext.resume();
+  async start() {
+    await this.unlockAudio();
+    if (!this.audioContext) {
+      return;
     }
     this.running = true;
     this.beatIndex = 0;
@@ -114,6 +147,37 @@ class RpmMetronome extends HTMLElement {
     this.render();
     this.tick();
     this.restartTimer();
+  }
+
+  async unlockAudio() {
+    this.ensureAudio();
+    const context = this.audioContext;
+    if (!context) {
+      return;
+    }
+    if (context.state !== "running" && context.resume) {
+      await context.resume().catch(() => {});
+    }
+    this.playUnlockBlip();
+  }
+
+  playUnlockBlip() {
+    const context = this.audioContext;
+    if (!context) {
+      return;
+    }
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(440, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.002);
+    gain.gain.linearRampToValueAtTime(0.0001, now + 0.025);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.03);
   }
 
   stop() {
@@ -197,52 +261,96 @@ class RpmMetronome extends HTMLElement {
     `;
   }
 
+  renderStepIcon(delta) {
+    if (delta === -5) {
+      return `
+        <svg class="metronome-step-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <polygon points="12,5 3,12 12,19"></polygon>
+          <polygon points="18,5 9,12 18,19"></polygon>
+        </svg>
+      `;
+    }
+    if (delta === -1) {
+      return `
+        <svg class="metronome-step-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <polygon points="16,5 7,12 16,19"></polygon>
+        </svg>
+      `;
+    }
+    if (delta === 1) {
+      return `
+        <svg class="metronome-step-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <polygon points="8,5 17,12 8,19"></polygon>
+        </svg>
+      `;
+    }
+    return `
+      <svg class="metronome-step-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <polygon points="6,5 15,12 6,19"></polygon>
+        <polygon points="12,5 21,12 12,19"></polygon>
+      </svg>
+    `;
+  }
+
+  renderStepButton(delta, label) {
+    return `
+      <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="${delta}" aria-label="${label}">
+        ${this.renderStepIcon(delta)}
+      </button>
+    `;
+  }
+
   render() {
     const wasOpen = this.querySelector("dialog")?.open;
-    this.innerHTML = `
-      <dialog class="modal metronome-modal" tabindex="-1">
-        <div class="metronome-header">
-          <h3>Metronome</h3>
-          <button type="button" class="btn btn-small metronome-icon-button" data-metronome-close aria-label="Close metronome">
-            <span aria-hidden="true">&times;</span>
+    const controls = `
+      <div class="metronome-controls">
+        <div class="metronome-toggle-strip">
+          ${this.renderToggleGroup(
+            "Time signature",
+            SIGNATURES.map((value) => ({ value, label: `${value}/4` })),
+            this.beatsPerMeasure,
+          )}
+          ${this.renderToggleGroup("Rhythm", SUBDIVISIONS, this.subdivision)}
+        </div>
+        <div class="metronome-number-row" aria-label="Tempo controls">
+          ${this.renderStepButton(-5, "Decrease tempo by 5")}
+          ${this.renderStepButton(-1, "Decrease tempo by 1")}
+          <div
+            id="metronomeBpm"
+            class="metronome-bpm-display"
+            role="status"
+            aria-label="Beats per minute"
+          >${this.bpm}</div>
+          ${this.renderStepButton(1, "Increase tempo by 1")}
+          ${this.renderStepButton(5, "Increase tempo by 5")}
+        </div>
+        <div class="metronome-bottom-row">
+          <span aria-hidden="true"></span>
+          <div class="metronome-dots" aria-label="Beat indicator">
+            ${Array.from({ length: this.beatsPerMeasure }, (_, index) => `
+              <span class="metronome-dot ${this.running && index === this.beatIndex ? "metronome-dot-active" : ""}" data-beat="${index}"></span>
+            `).join("")}
+          </div>
+          <button type="button" class="btn btn-primary metronome-start" data-metronome-toggle>
+            <span aria-hidden="true">${this.running ? "■" : "▶"}</span>
+            <span class="sr-only">${this.running ? "Stop" : "Start"}</span>
           </button>
         </div>
-        <div class="metronome-controls">
-          <div class="metronome-toggle-strip">
-            ${this.renderToggleGroup(
-              "Time signature",
-              SIGNATURES.map((value) => ({ value, label: `${value}/4` })),
-              this.beatsPerMeasure,
-            )}
-            ${this.renderToggleGroup("Rhythm", SUBDIVISIONS, this.subdivision)}
-          </div>
-          <div class="metronome-number-row" aria-label="Tempo controls">
-            <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="-5">--</button>
-            <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="-1">-</button>
-            <div
-              id="metronomeBpm"
-              class="metronome-bpm-display"
-              role="status"
-              aria-label="Beats per minute"
-            >${this.bpm}</div>
-            <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="1">+</button>
-            <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="5">++</button>
-          </div>
-          <div class="metronome-bottom-row">
-            <span aria-hidden="true"></span>
-            <div class="metronome-dots" aria-label="Beat indicator">
-              ${Array.from({ length: this.beatsPerMeasure }, (_, index) => `
-                <span class="metronome-dot ${this.running && index === this.beatIndex ? "metronome-dot-active" : ""}" data-beat="${index}"></span>
-              `).join("")}
-            </div>
-            <button type="button" class="btn btn-primary metronome-start" data-metronome-toggle>
-              <span aria-hidden="true">${this.running ? "■" : "▶"}</span>
-              <span class="sr-only">${this.running ? "Stop" : "Start"}</span>
+      </div>
+    `;
+    this.innerHTML = this.isInline()
+      ? `<div class="metronome-inline" tabindex="-1">${controls}</div>`
+      : `
+        <dialog class="modal metronome-modal" tabindex="-1">
+          <div class="metronome-header">
+            <h3>Metronome</h3>
+            <button type="button" class="btn btn-small metronome-icon-button" data-metronome-close aria-label="Close metronome">
+              <span aria-hidden="true">&times;</span>
             </button>
           </div>
-        </div>
-      </dialog>
-    `;
+          ${controls}
+        </dialog>
+      `;
     this.bindEvents();
     if (wasOpen) {
       this.querySelector("dialog")?.showModal();
@@ -252,8 +360,18 @@ class RpmMetronome extends HTMLElement {
 
   bindEvents() {
     this.querySelector("[data-metronome-close]")?.addEventListener("click", () => this.close());
-    this.querySelector("[data-metronome-toggle]")?.addEventListener("click", () => this.toggle());
-    this.querySelector("dialog")?.addEventListener("keydown", (event) => this.handleKeydown(event));
+    const toggleButton = this.querySelector("[data-metronome-toggle]");
+    toggleButton?.addEventListener("pointerdown", () => {
+      if (!this.running) {
+        void this.unlockAudio();
+      }
+    });
+    toggleButton?.addEventListener("touchstart", () => {
+      if (!this.running) {
+        void this.unlockAudio();
+      }
+    }, { passive: true });
+    toggleButton?.addEventListener("click", () => this.toggle());
     for (const button of this.querySelectorAll("[data-metronome-adjust]")) {
       button.addEventListener("click", () => this.adjustBpm(Number(button.dataset.metronomeAdjust)));
     }
@@ -276,7 +394,7 @@ if (!customElements.get("rpm-metronome")) {
 }
 
 export function ensureMetronome() {
-  let metronome = document.querySelector("rpm-metronome");
+  let metronome = document.querySelector("rpm-metronome:not([inline])");
   if (!metronome) {
     metronome = document.createElement("rpm-metronome");
     document.body.appendChild(metronome);
