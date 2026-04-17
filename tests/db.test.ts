@@ -128,6 +128,14 @@ describe("db behavior", () => {
     expect(getSessionRpmRange(null, 180)).toEqual({ min: 1, max: 180 });
   });
 
+  test("missing best rpm fallback defaults to half goal rounded up to 10", () => {
+    const fallback180 = Math.ceil((180 / 2) / 10) * 10;
+    const fallback185 = Math.ceil((185 / 2) / 10) * 10;
+
+    expect(fallback180).toBe(90);
+    expect(fallback185).toBe(100);
+  });
+
   test("stats aggregates session counts by date", () => {
     const lickA = createLick(db, "Pat", "Line A", 180);
     const lickB = createLick(db, "Pat", "Line B", 180);

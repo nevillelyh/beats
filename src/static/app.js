@@ -336,7 +336,10 @@ class RpmApp extends LitElement {
     }
     this.activeLick = lick;
     this.addSessionMax = lick.goal_rpm;
-    this.addValue = Math.max(1, Math.min(this.addSessionMax, lick.best_rpm ?? 1));
+    const defaultRpm = lick.best_rpm === null || lick.best_rpm === undefined
+      ? Math.ceil((lick.goal_rpm / 2) / 10) * 10
+      : lick.best_rpm;
+    this.addValue = Math.max(1, Math.min(this.addSessionMax, defaultRpm));
     this.addSessionSaveAttempted = false;
     this.openDialog("addSessionDialog", { desktopFocusId: "addSessionMetronome" });
   }
