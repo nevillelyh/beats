@@ -15,7 +15,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-8. Use 3 top-level tabs: `Tracker` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
+8. Use 3 top-level tabs: `RPMs` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
 9. The shared top navigation includes an in-page metronome popup on all pages.
 
 ## Tech Stack
@@ -140,11 +140,16 @@ Provide `scripts/import_csv.py`:
 
 ## UI Specification
 
-### Header actions
+### Header and toolbar actions
 
-- If no artist filter is active: show `+ Add Artist`.
-- If artist filter is active: show `Add Licks`.
-- Top navigation includes `Metronome` next to `Tracker`, `Trends`, and `Stats`; it opens a popup in the current page.
+- Top navigation includes `RPMs`, `Trends`, `Stats`, and `Metronome`; it opens a popup in the current page.
+- Do not show a standalone `RPMs` title before the top navigation.
+- Highlight the `Metronome` button while its popup is open.
+- Main toolbar first row has two grouped control blocks that can wrap as whole groups on mobile:
+  - Artist block: `Artist` label, fixed-width artist dropdown, always-visible edit artist button, and `+` add artist button.
+  - Metrics block: `New`, `In progress`, `Done`, `Average %`, and `+` add lick button.
+- Disable edit artist and add lick when the artist dropdown is `All`.
+- Lick text filter is on its own row below the toolbar groups and fills the available row width.
 
 ### Metronome popup
 
@@ -188,7 +193,8 @@ Rules:
 - Filter by artist.
 - Artist filter default option label is `All`.
 - Client-side lick text filter:
-  - Text input adjacent to artist dropdown.
+  - Text input in its own row between the toolbar controls and licks table.
+  - Fills the available row width on mobile.
   - Filters by lick name or artist name (case-insensitive).
   - Keyboard shortcuts:
     - `Cmd/Ctrl+F` focuses and selects the filter input.
@@ -289,11 +295,11 @@ Each lick row has:
 
 ### Trends and Stats pages
 
-- Global tab navigation is shown next to the `RPMs` title:
-  - `Tracker` (`/`)
+- Global tab navigation is shown without a separate page title:
+  - `RPMs` (`/`)
   - `Trends` (`/trends.html`)
   - `Stats` (`/stats.html`)
-- Main page title is `RPMs - Tracker`.
+- Main page title is `RPMs`.
 - `Trends` page (`RPMs - Trends`) renders:
   - GitHub-style heatmap with month/day axes
   - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)
@@ -328,7 +334,7 @@ Each lick row has:
 
 ### Add licks
 
-Shown only when artist filter is active. Modal uses currently selected artist and includes:
+Opened from the toolbar `+` add lick button when an artist filter is active. Modal uses currently selected artist and includes:
 
 - Repeatable rows with `Lick` and inline `Goal RPM` controls on the same row
 - Header-row `+` button to add another row
@@ -347,7 +353,7 @@ Shown only when artist filter is active. Modal uses currently selected artist an
 
 ### Add artist
 
-Shown only when no artist filter is active:
+Opened from the toolbar `+` add artist button:
 
 - Artist name input
 - After create, artist filter automatically switches to the new artist
@@ -357,7 +363,7 @@ Shown only when no artist filter is active:
 
 ### Edit artist
 
-Shown only when an artist filter is active (icon button next to artist dropdown):
+Edit button is always visible next to the artist dropdown, disabled when `All` is selected:
 
 - Edit artist name
 - Keyboard UX:
@@ -385,8 +391,8 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
     - upserts duplicate lick/date
     - logs malformed pairs
 11. Device-local date controls "today" behavior.
-12. `+ Add Artist` is shown only when no artist filter is active and creates artists.
-13. `Add Licks` is shown only when artist filter is active and binds to current artist.
+12. Artist toolbar shows edit and add artist controls beside the fixed-width artist dropdown, disabling edit when `All` is selected.
+13. Add-lick `+` appears beside the metrics controls, is disabled until an artist is selected, and binds to the current artist.
 14. Optional lick URL is stored and lick name opens URL in a new tab when present.
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
 16. Docker image builds and app starts on port `3000`.
@@ -397,8 +403,9 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 21. Artist edit flow enforces unique artist names.
 22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
-24. Metronome popup is available on Tracker/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
+24. Metronome popup is available on RPMs/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
 25. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo beats best, and stops playback when the dialog closes.
+26. Tracker toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
 
 ## Implementation Milestones
 
@@ -411,7 +418,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 7. Mobile wrapped-row layout and chip-based sorting.
 8. Progress filter chips + metrics row (`New/In progress/Done` + `Average %`).
 9. URL-state persistence in main view.
-10. Conditional add flows (`+ Add Artist` / `Add Licks`) and dialogs.
+10. Toolbar add flows (`+` add artist / `+` add lick) and dialogs.
 11. Optional lick URL data flow (schema, API, lick edit form, link rendering).
 12. CSV importer script enhancements.
 13. Dockerfile + `.dockerignore` + container run docs.
@@ -420,6 +427,7 @@ Shown only when an artist filter is active (icon button next to artist dropdown)
 16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers, consolidated stepper/button helpers and progress predicates, unified repeated stats chart scaffolding, and removed unused stats CSS blocks).
 17. Shared metronome popup in top navigation with Web Audio playback, beat visualization, and keyboard controls.
 18. Inline add-session metronome with practice tempo controls and save-only new-best validation.
+19. Compact tracker navigation and grouped toolbar layout with metronome active-state highlighting.
 
 ## Reference Docs
 

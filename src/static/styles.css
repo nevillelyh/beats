@@ -80,9 +80,43 @@ body {
   flex-wrap: wrap;
 }
 
+.toolbar-main-row {
+  justify-content: space-between;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.artist-filter-group {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.artist-filter-group select {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
 .stats-row {
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+}
+
+.filter-row {
+  margin-top: 2px;
+}
+
+.filter-row #lickSearch {
+  flex: 1 1 260px;
+}
+
+.toolbar-add-lick {
+  margin-left: 2px;
 }
 
 .status-chip {
@@ -540,7 +574,7 @@ select {
 }
 
 #lickSearch {
-  width: 160px;
+  width: 100%;
 }
 
 .modal {

@@ -9,6 +9,13 @@ const SUBDIVISIONS = [
   { value: 4, label: "1/16" },
 ];
 
+function setMetronomeButtonOpen(isOpen) {
+  for (const button of document.querySelectorAll("[data-metronome-open]")) {
+    button.classList.toggle("btn-primary", isOpen);
+    button.setAttribute("aria-pressed", isOpen ? "true" : "false");
+  }
+}
+
 class RpmMetronome extends HTMLElement {
   static observedAttributes = ["bpm"];
 
@@ -54,6 +61,7 @@ class RpmMetronome extends HTMLElement {
     if (!dialog.open) {
       dialog.showModal();
     }
+    setMetronomeButtonOpen(true);
     requestAnimationFrame(() => {
       dialog.focus();
     });
@@ -382,6 +390,7 @@ class RpmMetronome extends HTMLElement {
       button.addEventListener("click", () => this.setSubdivision(Number(button.dataset.value)));
     }
     this.querySelector("dialog")?.addEventListener("close", () => {
+      setMetronomeButtonOpen(false);
       if (this.running) {
         this.stop();
       }

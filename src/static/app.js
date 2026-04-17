@@ -790,32 +790,87 @@ class RpmApp extends LitElement {
       <div class="container">
         <div class="header">
           <div class="title-row">
-            <h1 class="title">RPMs</h1>
             <div class="page-tabs">
-              <a class="btn btn-small btn-primary" href="/">Tracker</a>
+              <a class="btn btn-small btn-primary" href="/">RPMs</a>
               <a class="btn btn-small" href="/trends.html">Trends</a>
               <a class="btn btn-small" href="/stats.html">Stats</a>
-              <button type="button" class="btn btn-small" @click=${openMetronome}>Metronome</button>
+              <button type="button" class="btn btn-small" data-metronome-open @click=${openMetronome}>Metronome</button>
             </div>
           </div>
-          ${this.filterArtistId
-            ? html`<button class="btn btn-primary" @click=${this.openAddLickDialog}>Add Licks</button>`
-            : html`<button class="btn btn-primary" @click=${this.openAddArtistDialog}>+ Add Artist</button>`}
         </div>
 
         <div class="card">
           <div class="toolbar">
-            <div class="toolbar-row">
-              <label for="artistFilter">Artist</label>
-              <select id="artistFilter" @change=${this.onArtistFilter}>
-                <option value="">All</option>
-                ${this.artists.map(
-                  (artist) =>
-                    html`<option value=${artist.id} ?selected=${String(artist.id) === this.filterArtistId}>
-                      ${artist.name}
-                    </option>`,
-                )}
-              </select>
+            <div class="toolbar-row toolbar-main-row">
+              <div class="toolbar-group artist-filter-group">
+                <label for="artistFilter">Artist</label>
+                <select id="artistFilter" @change=${this.onArtistFilter}>
+                  <option value="">All</option>
+                  ${this.artists.map(
+                    (artist) =>
+                      html`<option value=${artist.id} ?selected=${String(artist.id) === this.filterArtistId}>
+                        ${artist.name}
+                      </option>`,
+                  )}
+                </select>
+                <button
+                  class="btn btn-small"
+                  ?disabled=${!this.filterArtistId}
+                  @click=${this.openEditArtistDialog}
+                  aria-label="Edit artist"
+                  title=${this.filterArtistId ? "Edit artist" : "Select an artist first"}
+                >
+                  ${this._renderPenIcon()}
+                </button>
+                <button class="btn btn-small btn-primary" @click=${this.openAddArtistDialog} aria-label="Add artist" title="Add artist">
+                  +
+                </button>
+                ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
+              </div>
+              <div class="toolbar-group stats-row">
+                <button
+                  class="status-chip ${this.progressFilter === "new" ? "status-chip-active" : ""}"
+                  @click=${() => this.setProgressFilter("new")}
+                  title="New"
+                  aria-label="Filter new licks"
+                >
+                  <span class="status-icon status-new" aria-hidden="true"></span>
+                  <span class="stat-count">${newCount}</span>
+                </button>
+                <button
+                  class="status-chip ${this.progressFilter === "progress" ? "status-chip-active" : ""}"
+                  @click=${() => this.setProgressFilter("progress")}
+                  title="In progress"
+                  aria-label="Filter in-progress licks"
+                >
+                  <span class="status-icon status-progress" aria-hidden="true"></span>
+                  <span class="stat-count">${inProgressCount}</span>
+                </button>
+                <button
+                  class="status-chip ${this.progressFilter === "done" ? "status-chip-active" : ""}"
+                  @click=${() => this.setProgressFilter("done")}
+                  title="Done"
+                  aria-label="Filter completed licks"
+                >
+                  <span class="status-icon status-done" aria-hidden="true"></span>
+                  <span class="stat-count">${doneCount}</span>
+                </button>
+                <span class="avg-pill" title="Average %">
+                  <span class="status-icon avg-icon" aria-hidden="true"></span>
+                  <span class="stat-count">${averagePct === null ? "-" : `${averagePct}%`}</span>
+                </span>
+                <button
+                  class="btn btn-small btn-primary toolbar-add-lick"
+                  ?disabled=${!this.filterArtistId}
+                  @click=${this.openAddLickDialog}
+                  aria-label="Add lick"
+                  title=${this.filterArtistId ? "Add lick" : "Select an artist first"}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div class="toolbar-row filter-row">
               <input
                 type="text"
                 id="lickSearch"
@@ -823,45 +878,6 @@ class RpmApp extends LitElement {
                 .value=${this.lickFilter}
                 @input=${this.onLickFilter}
               />
-              ${this.filterArtistId
-                ? html`<button class="btn btn-small" @click=${this.openEditArtistDialog} aria-label="Edit artist" title="Edit artist">
-                    ${this._renderPenIcon()}
-                  </button>`
-                : ""}
-              ${this.loading ? html`<span class="muted">Loading...</span>` : ""}
-            </div>
-            <div class="toolbar-row stats-row">
-              <button
-                class="status-chip ${this.progressFilter === "new" ? "status-chip-active" : ""}"
-                @click=${() => this.setProgressFilter("new")}
-                title="New"
-                aria-label="Filter new licks"
-              >
-                <span class="status-icon status-new" aria-hidden="true"></span>
-                <span class="stat-count">${newCount}</span>
-              </button>
-              <button
-                class="status-chip ${this.progressFilter === "progress" ? "status-chip-active" : ""}"
-                @click=${() => this.setProgressFilter("progress")}
-                title="In progress"
-                aria-label="Filter in-progress licks"
-              >
-                <span class="status-icon status-progress" aria-hidden="true"></span>
-                <span class="stat-count">${inProgressCount}</span>
-              </button>
-              <button
-                class="status-chip ${this.progressFilter === "done" ? "status-chip-active" : ""}"
-                @click=${() => this.setProgressFilter("done")}
-                title="Done"
-                aria-label="Filter completed licks"
-              >
-                <span class="status-icon status-done" aria-hidden="true"></span>
-                <span class="stat-count">${doneCount}</span>
-              </button>
-              <span class="avg-pill" title="Average %">
-                <span class="status-icon avg-icon" aria-hidden="true"></span>
-                <span class="stat-count">${averagePct === null ? "-" : `${averagePct}%`}</span>
-              </span>
             </div>
           </div>
           ${this.compact
