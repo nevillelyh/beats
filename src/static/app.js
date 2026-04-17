@@ -23,8 +23,7 @@ class RpmApp extends LitElement {
     sessionSortBy: { state: true },
     sessionSortDir: { state: true },
     addValue: { state: true },
-    addMin: { state: true },
-    addMax: { state: true },
+    addSessionMax: { state: true },
     addSessionSaveAttempted: { state: true },
     addLickRows: { state: true },
     compact: { state: true },
@@ -52,8 +51,7 @@ class RpmApp extends LitElement {
     this.sessionSortBy = "date";
     this.sessionSortDir = "desc";
     this.addValue = 0;
-    this.addMin = 0;
-    this.addMax = 0;
+    this.addSessionMax = 0;
     this.addSessionSaveAttempted = false;
     this.addLickRows = [this._createAddLickRow()];
     this.progressFilter = "all";
@@ -298,6 +296,10 @@ class RpmApp extends LitElement {
     return row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100;
   }
 
+  canAddSession(row) {
+    return row?.can_add_today !== false;
+  }
+
   async openSessions(lick) {
     this.activeLick = lick;
     this.sessionSortBy = "date";
@@ -329,28 +331,14 @@ class RpmApp extends LitElement {
   }
 
   openAddSession(lick) {
-    this.activeLick = lick;
-    const min = lick.best_rpm === null ? 1 : lick.best_rpm + 1;
-    const max = lick.goal_rpm;
-    this.addMin = min;
-    this.addMax = max;
-    this.addValue = Math.max(1, Math.min(max, lick.best_rpm ?? 1));
-    this.addSessionSaveAttempted = false;
-    this.openDialog("addSessionDialog", { desktopFocusId: "addSessionMetronome" });
-  }
-
-  updateAddValue(event) {
-    const raw = Number(event.target.value);
-    if (!Number.isFinite(raw)) {
-      this.addValue = this.addMin;
+    if (!this.canAddSession(lick)) {
       return;
     }
-    this.addValue = Math.trunc(raw);
-  }
-
-  adjustAddValue(delta) {
-    const next = this.addValue + delta;
-    this.addValue = Math.max(1, Math.min(this.addMax, next));
+    this.activeLick = lick;
+    this.addSessionMax = lick.goal_rpm;
+    this.addValue = Math.max(1, Math.min(this.addSessionMax, lick.best_rpm ?? 1));
+    this.addSessionSaveAttempted = false;
+    this.openDialog("addSessionDialog", { desktopFocusId: "addSessionMetronome" });
   }
 
   onAddSessionTempoChange(event) {
@@ -411,8 +399,8 @@ class RpmApp extends LitElement {
     if (this.activeLick?.best_rpm !== null && this.activeLick?.best_rpm !== undefined && this.addValue <= this.activeLick.best_rpm) {
       return `RPM must be greater than current best (${this.activeLick.best_rpm})`;
     }
-    if (this.addValue < 1 || this.addValue > this.addMax) {
-      return `RPM must be between 1 and ${this.addMax}`;
+    if (this.addValue < 1 || this.addValue > this.addSessionMax) {
+      return `RPM must be between 1 and ${this.addSessionMax}`;
     }
     return "";
   }
@@ -524,6 +512,10 @@ class RpmApp extends LitElement {
 
   async submitAddSession() {
     if (!this.activeLick) {
+      return;
+    }
+    if (!this.canAddSession(this.activeLick)) {
+      this.error = "Cannot add session when best RPM already meets/exceeds goal";
       return;
     }
     const addError = this.addValueValidationError();
@@ -752,8 +744,8 @@ class RpmApp extends LitElement {
   }
 
   render() {
-    const addDisabledByRange = this.addMin > this.addMax;
-    const addValidationError = addDisabledByRange ? "" : this.addValueValidationError();
+    const addBlocked = !this.activeLick || !this.canAddSession(this.activeLick);
+    const addValidationError = addBlocked ? "" : this.addValueValidationError();
     const showAddValidationError =
       addValidationError
       && (this.addSessionSaveAttempted || !addValidationError.startsWith("RPM must be greater than current best"));
@@ -789,7 +781,7 @@ class RpmApp extends LitElement {
     return html`
       <div class="container">
         <div class="header">
-          <div class="title-row">
+          <div class="nav-row">
             <div class="page-tabs">
               <a class="btn btn-small btn-primary" href="/">RPMs</a>
               <a class="btn btn-small" href="/trends.html">Trends</a>
@@ -919,7 +911,13 @@ class RpmApp extends LitElement {
                                       <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                         ...
                                       </button>
-                                      <button class="btn btn-small btn-primary" @click=${() => this.openAddSession(row)}>
+                                      <button
+                                        class="btn btn-small btn-primary"
+                                        ?disabled=${!this.canAddSession(row)}
+                                        @click=${() => this.openAddSession(row)}
+                                        aria-label="Add session"
+                                        title=${this.canAddSession(row) ? "Add session" : "Goal already met"}
+                                      >
                                         +
                                       </button>
                                     </div>
@@ -996,7 +994,13 @@ class RpmApp extends LitElement {
                                     <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
                                       ...
                                     </button>
-                                    <button class="btn btn-small btn-primary" @click=${() => this.openAddSession(row)}>
+                                    <button
+                                      class="btn btn-small btn-primary"
+                                      ?disabled=${!this.canAddSession(row)}
+                                      @click=${() => this.openAddSession(row)}
+                                      aria-label="Add session"
+                                      title=${this.canAddSession(row) ? "Add session" : "Goal already met"}
+                                    >
                                       +
                                     </button>
                                   </div>
@@ -1059,7 +1063,7 @@ class RpmApp extends LitElement {
           </div>
           <div class="dialog-actions">
             <button type="button" class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
-            <button type="submit" class="btn btn-primary" ?disabled=${addDisabledByRange || Boolean(addValidationError)}>Save</button>
+            <button type="submit" class="btn btn-primary" ?disabled=${addBlocked || Boolean(addValidationError)}>Save</button>
           </div>
         </form>
       </dialog>

@@ -405,7 +405,7 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
 24. Metronome popup is available on RPMs/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
 25. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo beats best, and stops playback when the dialog closes.
-26. Tracker toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
+26. RPMs page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
 
 ## Implementation Milestones
 

@@ -362,6 +362,7 @@ class RpmMetronome extends HTMLElement {
     this.bindEvents();
     if (wasOpen) {
       this.querySelector("dialog")?.showModal();
+      setMetronomeButtonOpen(true);
       requestAnimationFrame(() => this.querySelector("dialog")?.focus());
     }
   }

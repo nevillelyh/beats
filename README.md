@@ -1,10 +1,11 @@
 # RPMs
 
-RPM tracker for music practice sessions with three pages:
+RPM tracker for music practice sessions with three pages and a shared metronome popup:
 
-- `Tracker` (`/`)
+- `RPMs` (`/`)
 - `Trends` (`/trends.html`)
 - `Stats` (`/stats.html`)
+- `Metronome` popup available from each page
 
 ## Stack
 

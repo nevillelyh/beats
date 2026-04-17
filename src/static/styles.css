@@ -32,12 +32,7 @@ body {
   margin-bottom: 12px;
 }
 
-.title {
-  margin: 0;
-  font-size: 1.4rem;
-}
-
-.title-row {
+.nav-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -761,17 +756,11 @@ select {
   .container {
     padding: 14px 10px 24px;
   }
-  .title {
-    font-size: 1.2rem;
-  }
   .table {
     font-size: 0.88rem;
   }
   .toolbar label {
     font-size: 0.85rem;
-  }
-  .toolbar-row select {
-    min-width: 84px;
   }
   .add-lick-row,
   .add-lick-row-labels {
