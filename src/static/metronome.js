@@ -17,11 +17,12 @@ function setMetronomeButtonOpen(isOpen) {
 }
 
 class RpmMetronome extends HTMLElement {
-  static observedAttributes = ["bpm"];
+  static observedAttributes = ["bpm", "max"];
 
   constructor() {
     super();
     this.bpm = DEFAULT_BPM;
+    this.maxBpm = MAX_BPM;
     this.beatsPerMeasure = 4;
     this.subdivision = 1;
     this.running = false;
@@ -39,7 +40,7 @@ class RpmMetronome extends HTMLElement {
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name !== "bpm" || oldValue === newValue) {
+    if (oldValue === newValue) {
       return;
     }
     this.readBpmAttribute();
@@ -76,6 +77,8 @@ class RpmMetronome extends HTMLElement {
   }
 
   readBpmAttribute() {
+    const m = Number(this.getAttribute("max"));
+    this.maxBpm = Number.isFinite(m) && m > 0 ? m : MAX_BPM;
     if (this.hasAttribute("bpm")) {
       this.bpm = this.normalizeBpm(this.getAttribute("bpm"));
     }
@@ -86,7 +89,7 @@ class RpmMetronome extends HTMLElement {
     if (!Number.isFinite(next)) {
       return DEFAULT_BPM;
     }
-    return Math.max(MIN_BPM, Math.min(MAX_BPM, Math.trunc(next)));
+    return Math.max(MIN_BPM, Math.min(this.maxBpm, Math.trunc(next)));
   }
 
   setBpm(value, shouldRender = true) {

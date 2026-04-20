@@ -1061,6 +1061,7 @@ class RpmApp extends LitElement {
               class="add-session-metronome"
               inline
               bpm=${this.addValue}
+              max=${this.addSessionMax}
               @bpm-change=${this.onAddSessionTempoChange}
             ></rpm-metronome>
           </div>

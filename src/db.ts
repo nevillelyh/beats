@@ -394,7 +394,7 @@ export function getSessionRpmRange(
   if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
     throw new Error("goalRpm must be a positive integer");
   }
-  const min = bestRpm === null ? 1 : bestRpm + 1;
+  const min = bestRpm === null ? 1 : Math.min(bestRpm + 1, goalRpm);
   return { min, max: goalRpm };
 }
 

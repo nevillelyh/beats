@@ -118,10 +118,11 @@ describe("db behavior", () => {
     expect(rows[0].can_add_today).toBe(false);
   });
 
-  test("session rpm range uses previous best plus one as minimum", () => {
+  test("session rpm range uses previous best plus one as minimum and goal as maximum", () => {
     expect(getSessionRpmRange(1, 200)).toEqual({ min: 2, max: 200 });
     expect(getSessionRpmRange(150, 200)).toEqual({ min: 151, max: 200 });
     expect(getSessionRpmRange(152, 200)).toEqual({ min: 153, max: 200 });
+    expect(getSessionRpmRange(200, 200)).toEqual({ min: 200, max: 200 });
   });
 
   test("session rpm range handles missing best rpm", () => {
