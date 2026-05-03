@@ -1,8 +1,8 @@
-# RPMs
+# Beats
 
-RPM tracker for music practice sessions with three pages and a shared metronome popup:
+Beats is a tracker for music practice sessions with three pages and a shared metronome popup:
 
-- `RPMs` (`/`)
+- `Beats` (`/`)
 - `Trends` (`/trends.html`)
 - `Stats` (`/stats.html`)
 - `Metronome` popup available from each page
@@ -24,12 +24,12 @@ bun run src/server.ts
 
 3. Open `http://localhost:3000`.
 
-Default DB path: `data/rpms.sqlite`.
+Default DB path: `data/beats.sqlite`.
 
 ## CSV Import
 
 ```bash
-python3 scripts/import_csv.py --db data/rpms.sqlite --csv path/to/input.csv
+python3 scripts/import_csv.py --db data/beats.sqlite --csv path/to/input.csv
 ```
 
 ## Docker
@@ -37,16 +37,16 @@ python3 scripts/import_csv.py --db data/rpms.sqlite --csv path/to/input.csv
 Build image:
 
 ```bash
-docker build -t rpms .
+docker build -t beats .
 ```
 
 Run with persistent SQLite data:
 
 ```bash
-docker run -p 3000:3000 -v $(pwd)/data:/data rpms
+docker run -p 3000:3000 -v $(pwd)/data:/data beats
 ```
 
 Container defaults:
 
 - `PORT=3000`
-- `DB_PATH=/data/rpms.sqlite`
+- `DB_PATH=/data/beats.sqlite`

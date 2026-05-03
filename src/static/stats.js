@@ -528,11 +528,11 @@ function colorForDeltaBin(deltaBin, maxDeltaBin) {
   return `hsl(214 82% ${Math.round(lightness)}%)`;
 }
 
-function renderRpmBars(target, yAxis, legend, rows) {
+function renderBpmBars(target, yAxis, legend, rows) {
   target.textContent = "";
   legend.textContent = "";
   if (!rows.length) {
-    target.innerHTML = `<div class="muted">No RPM delta data yet.</div>`;
+    target.innerHTML = `<div class="muted">No BPM delta data yet.</div>`;
     yAxis.textContent = "";
     return;
   }
@@ -551,7 +551,7 @@ function renderRpmBars(target, yAxis, legend, rows) {
 
   const legendFirst = document.createElement("span");
   legendFirst.className = "legend-item";
-  legendFirst.innerHTML = `<span class="legend-swatch bar-seg-rpm-first"></span>First`;
+  legendFirst.innerHTML = `<span class="legend-swatch bar-seg-bpm-first"></span>First`;
   legend.appendChild(legendFirst);
   for (const bin of allBins) {
     const item = document.createElement("span");
@@ -567,7 +567,7 @@ function renderRpmBars(target, yAxis, legend, rows) {
   if (allBins.length) {
     const unit = document.createElement("span");
     unit.className = "legend-item legend-unit";
-    unit.textContent = "RPM";
+    unit.textContent = "BPM";
     legend.appendChild(unit);
   }
 
@@ -583,13 +583,13 @@ function renderRpmBars(target, yAxis, legend, rows) {
     );
 
     if (row.first_sessions > 0) {
-      appendBarSegment(stack, "bar-seg-rpm-first", Math.round(firstTotal * scale));
+      appendBarSegment(stack, "bar-seg-bpm-first", Math.round(firstTotal * scale));
     }
 
     for (const part of row.delta_bins) {
       appendBarSegment(
         stack,
-        "bar-seg-rpm-delta",
+        "bar-seg-bpm-delta",
         Math.round(part.session_count * part.delta_bin * scale),
         colorForDeltaBin(part.delta_bin, maxDeltaBin),
       );
@@ -612,11 +612,11 @@ async function loadStats() {
   const weekdayAxis = document.querySelector("#statsWeekdayAxis");
   const sessionsBars = document.querySelector("#sessionsBars");
   const sessionsYAxis = document.querySelector("#sessionsYAxis");
-  const rpmBars = document.querySelector("#rpmBars");
-  const rpmYAxis = document.querySelector("#rpmYAxis");
-  const rpmLegend = document.querySelector("#rpmLegend");
+  const bpmBars = document.querySelector("#bpmBars");
+  const bpmYAxis = document.querySelector("#bpmYAxis");
+  const bpmLegend = document.querySelector("#bpmLegend");
   const sessionsRangeButtons = document.querySelector("#sessionsRangeButtons");
-  const rpmRangeButtons = document.querySelector("#rpmRangeButtons");
+  const bpmRangeButtons = document.querySelector("#bpmRangeButtons");
   const progressBars = document.querySelector("#progressBars");
   const progressYAxis = document.querySelector("#progressYAxis");
   const histDeltasBars = document.querySelector("#histDeltasBars");
@@ -637,11 +637,11 @@ async function loadStats() {
   const hasSessionBars = Boolean(
     sessionsBars
       && sessionsYAxis
-      && rpmBars
-      && rpmYAxis
-      && rpmLegend
+      && bpmBars
+      && bpmYAxis
+      && bpmLegend
       && sessionsRangeButtons
-      && rpmRangeButtons,
+      && bpmRangeButtons,
   );
   const hasProgress = Boolean(progressBars && progressYAxis);
   const hasHistograms = Boolean(
@@ -696,8 +696,8 @@ async function loadStats() {
 
     if (hasSessionBars) {
       const sessionByDate = new Map((barsPayload?.data?.sessions || []).map((row) => [row.date, row]));
-      const rpmByDate = new Map((barsPayload?.data?.rpms || []).map((row) => [row.date, row]));
-      const earliestSessionDate = [...sessionByDate.keys(), ...rpmByDate.keys()].sort()[0] || null;
+      const bpmByDate = new Map((barsPayload?.data?.bpm_deltas || []).map((row) => [row.date, row]));
+      const earliestSessionDate = [...sessionByDate.keys(), ...bpmByDate.keys()].sort()[0] || null;
 
       let activeBarsRange = "1M";
       const renderBarsRange = () => {
@@ -709,13 +709,13 @@ async function loadStats() {
           progression_sessions: 0,
           first_completion_sessions: 0,
         }));
-        const rpmRows = fillDateWindow(rpmByDate, windowDates, (date) => ({
+        const bpmRows = fillDateWindow(bpmByDate, windowDates, (date) => ({
           date,
           first_sessions: 0,
           delta_bins: [],
         }));
         renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);
-        renderRpmBars(rpmBars, rpmYAxis, rpmLegend, rpmRows);
+        renderBpmBars(bpmBars, bpmYAxis, bpmLegend, bpmRows);
         const setActiveBarsRange = (nextValue) => {
           if (nextValue === activeBarsRange) {
             return;
@@ -724,7 +724,7 @@ async function loadStats() {
           renderBarsRange();
         };
         renderRangeButtons(sessionsRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, setActiveBarsRange);
-        renderRangeButtons(rpmRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, setActiveBarsRange);
+        renderRangeButtons(bpmRangeButtons, BARS_RANGE_OPTIONS, activeBarsRange, setActiveBarsRange);
       };
       renderBarsRange();
     }
@@ -762,14 +762,14 @@ async function loadStats() {
     }
     const errorPairs = [];
     if (sessionsBars && sessionsYAxis) errorPairs.push([sessionsBars, sessionsYAxis]);
-    if (rpmBars && rpmYAxis) errorPairs.push([rpmBars, rpmYAxis]);
+    if (bpmBars && bpmYAxis) errorPairs.push([bpmBars, bpmYAxis]);
     if (progressBars && progressYAxis) errorPairs.push([progressBars, progressYAxis]);
     if (histDeltasBars && histDeltasYAxis) errorPairs.push([histDeltasBars, histDeltasYAxis]);
     if (histSessionsBars && histSessionsYAxis) errorPairs.push([histSessionsBars, histSessionsYAxis]);
     if (histDaysBars && histDaysYAxis) errorPairs.push([histDaysBars, histDaysYAxis]);
     clearChartWithError(errorPairs);
-    if (rpmLegend) {
-      rpmLegend.textContent = "";
+    if (bpmLegend) {
+      bpmLegend.textContent = "";
     }
   }
 }

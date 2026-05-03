@@ -12,7 +12,7 @@ import {
   getLickMeta,
   getLicks,
   getSessions,
-  getSessionRpmRange,
+  getSessionBpmRange,
   initSchema,
   normalizeLocalDate,
   openDb,
@@ -21,7 +21,7 @@ import {
 } from "./db";
 
 const PORT = Number(process.env.PORT || 3000);
-const DB_PATH = process.env.DB_PATH || "data/rpms.sqlite";
+const DB_PATH = process.env.DB_PATH || "data/beats.sqlite";
 
 const db = openDb(DB_PATH);
 initSchema(db);
@@ -135,11 +135,11 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const body = (await req.json()) as {
         artistName?: string;
         lickName?: string;
-        goalRpm?: number;
+        goalBpm?: number;
         url?: string;
         licks?: Array<{
           lickName?: string;
-          goalRpm?: number;
+          goalBpm?: number;
           url?: string;
         }>;
       };
@@ -155,16 +155,16 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
           body.artistName,
           body.licks.map((lick) => ({
             lickName: lick.lickName || "",
-            goalRpm: lick.goalRpm ?? 0,
+            goalBpm: lick.goalBpm ?? 0,
             lickUrl: lick.url,
           })),
         );
         return json({ ids, id: ids[0] }, 201);
       }
-      if (!body.lickName || !body.goalRpm) {
-        return badRequest("artistName, lickName, and goalRpm are required");
+      if (!body.lickName || !body.goalBpm) {
+        return badRequest("artistName, lickName, and goalBpm are required");
       }
-      const id = createLick(db, body.artistName, body.lickName, body.goalRpm, body.url);
+      const id = createLick(db, body.artistName, body.lickName, body.goalBpm, body.url);
       return json({ id, ids: [id] }, 201);
     } catch (err) {
       return handleDbError(err, "Lick already exists for this artist");
@@ -177,13 +177,13 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const lickId = parseRouteId(lickMatch);
       const body = (await req.json()) as {
         lickName?: string;
-        goalRpm?: number;
+        goalBpm?: number;
         url?: string;
       };
-      if (!body.lickName || !body.goalRpm) {
-        return badRequest("lickName and goalRpm are required");
+      if (!body.lickName || !body.goalBpm) {
+        return badRequest("lickName and goalBpm are required");
       }
-      updateLick(db, lickId, body.lickName, body.goalRpm, body.url);
+      updateLick(db, lickId, body.lickName, body.goalBpm, body.url);
       return json({ ok: true });
     } catch (err) {
       return handleDbError(err, "Lick already exists for this artist");
@@ -206,10 +206,10 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
   if (sessionListMatch && req.method === "POST") {
     try {
       const lickId = parseRouteId(sessionListMatch);
-      const body = (await req.json()) as { rpm?: number };
-      const rpm = body.rpm;
-      if (!Number.isInteger(rpm) || rpm <= 0) {
-        return badRequest("rpm must be a positive integer");
+      const body = (await req.json()) as { bpm?: number };
+      const bpm = body.bpm;
+      if (!Number.isInteger(bpm) || bpm <= 0) {
+        return badRequest("bpm must be a positive integer");
       }
 
       const localDate = normalizeLocalDate(req.headers.get("x-local-date"));
@@ -218,16 +218,16 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
         return notFound("Lick not found");
       }
 
-      const best = meta.best_rpm ?? 0;
-      if (best >= meta.goal_rpm) {
-        return badRequest("Cannot add session when best RPM already meets/exceeds goal");
+      const best = meta.best_bpm ?? 0;
+      if (best >= meta.goal_bpm) {
+        return badRequest("Cannot add session when best BPM already meets/exceeds goal");
       }
-      const range = getSessionRpmRange(best, meta.goal_rpm);
-      if (rpm < range.min || rpm > range.max) {
-        return badRequest(`rpm must be between ${range.min} and ${range.max}`);
+      const range = getSessionBpmRange(best, meta.goal_bpm);
+      if (bpm < range.min || bpm > range.max) {
+        return badRequest(`bpm must be between ${range.min} and ${range.max}`);
       }
 
-      const id = addSession(db, lickId, localDate, rpm);
+      const id = addSession(db, lickId, localDate, bpm);
       return json({ id }, 201);
     } catch (err) {
       return badRequest((err as Error).message);
@@ -274,5 +274,5 @@ Bun.serve({
   },
 });
 
-console.log(`RPM tracker running on http://localhost:${PORT}`);
+console.log(`Beats running on http://localhost:${PORT}`);
 console.log(`Using DB_PATH=${DB_PATH}`);

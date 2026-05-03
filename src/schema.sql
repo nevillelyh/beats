@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS licks (
   artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   url TEXT,
-  goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0),
+  goal_bpm INTEGER NOT NULL CHECK(goal_bpm > 0),
   UNIQUE(artist_id, name)
 );
 
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY,
   lick_id INTEGER NOT NULL REFERENCES licks(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
-  rpm INTEGER NOT NULL CHECK(rpm > 0),
+  bpm INTEGER NOT NULL CHECK(bpm > 0),
   UNIQUE(lick_id, date)
 );
 

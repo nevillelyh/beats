@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Import RPM CSV data into SQLite.
+"""Import BPM CSV data into SQLite.
 
-Expected columns include Artist, Lick, Goal, and any number of Date N / RPM N pairs.
+Expected columns include Artist, Lick, Goal, and any number of Date N / BPM N pairs.
 Derived columns (Best, %, First, Last) are ignored.
 """
 
@@ -15,9 +15,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 DATE_COL_RE = re.compile(r"^Date\s+(\d+)$")
-RPM_COL_RE = re.compile(r"^RPM\s+(\d+)$")
+BPM_COL_RE = re.compile(r"^BPM\s+(\d+)$")
 DATE_SHORT_RE = re.compile(r"^D(\d+)$")
-RPM_SHORT_RE = re.compile(r"^R(\d+)$")
+BPM_SHORT_RE = re.compile(r"^B(\d+)$")
 
 
 SCHEMA_SQL = """
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS licks (
   artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   url TEXT,
-  goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0),
+  goal_bpm INTEGER NOT NULL CHECK(goal_bpm > 0),
   UNIQUE(artist_id, name)
 );
 
@@ -41,14 +41,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY,
   lick_id INTEGER NOT NULL REFERENCES licks(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
-  rpm INTEGER NOT NULL CHECK(rpm > 0),
+  bpm INTEGER NOT NULL CHECK(bpm > 0),
   UNIQUE(lick_id, date)
 );
 """
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Import RPM CSV into SQLite")
+    parser = argparse.ArgumentParser(description="Import BPM CSV into SQLite")
     parser.add_argument("--db", required=True, help="SQLite database path")
     parser.add_argument("--csv", required=True, help="CSV file path")
     parser.add_argument(
@@ -66,7 +66,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
 def resolve_pairs(fieldnames: list[str]) -> list[tuple[str, str]]:
     dates: dict[int, str] = {}
-    rpms: dict[int, str] = {}
+    bpm_columns: dict[int, str] = {}
     for name in fieldnames:
         if not name:
             continue
@@ -79,17 +79,17 @@ def resolve_pairs(fieldnames: list[str]) -> list[tuple[str, str]]:
         if m_short_date:
             dates[int(m_short_date.group(1))] = name
             continue
-        m_rpm = RPM_COL_RE.match(clean)
-        if m_rpm:
-            rpms[int(m_rpm.group(1))] = name
+        m_bpm = BPM_COL_RE.match(clean)
+        if m_bpm:
+            bpm_columns[int(m_bpm.group(1))] = name
             continue
-        m_short_rpm = RPM_SHORT_RE.match(clean)
-        if m_short_rpm:
-            rpms[int(m_short_rpm.group(1))] = name
+        m_short_bpm = BPM_SHORT_RE.match(clean)
+        if m_short_bpm:
+            bpm_columns[int(m_short_bpm.group(1))] = name
 
     pairs: list[tuple[str, str]] = []
-    for i in sorted(set(dates.keys()) & set(rpms.keys())):
-        pairs.append((dates[i], rpms[i]))
+    for i in sorted(set(dates.keys()) & set(bpm_columns.keys())):
+        pairs.append((dates[i], bpm_columns[i]))
     return pairs
 
 
@@ -123,18 +123,18 @@ def ensure_artist(conn: sqlite3.Connection, name: str) -> int:
 
 def ensure_lick(conn: sqlite3.Connection, artist_id: int, name: str, goal: int) -> int:
     existing = conn.execute(
-        "SELECT id, goal_rpm FROM licks WHERE artist_id = ? AND name = ?",
+        "SELECT id, goal_bpm FROM licks WHERE artist_id = ? AND name = ?",
         (artist_id, name),
     ).fetchone()
     if existing:
         lick_id = int(existing[0])
         current_goal = int(existing[1])
         if current_goal != goal:
-            conn.execute("UPDATE licks SET goal_rpm = ? WHERE id = ?", (goal, lick_id))
+            conn.execute("UPDATE licks SET goal_bpm = ? WHERE id = ?", (goal, lick_id))
         return lick_id
 
     conn.execute(
-        "INSERT INTO licks(artist_id, name, goal_rpm) VALUES (?, ?, ?)",
+        "INSERT INTO licks(artist_id, name, goal_bpm) VALUES (?, ?, ?)",
         (artist_id, name, goal),
     )
     row = conn.execute(
@@ -185,34 +185,34 @@ def import_csv(db_path: Path, csv_path: Path, default_year: int) -> None:
             artist_id = ensure_artist(conn, artist)
             lick_id = ensure_lick(conn, artist_id, lick, goal)
 
-            for date_col, rpm_col in pairs:
+            for date_col, bpm_col in pairs:
                 date_raw = (row.get(date_col) or "").strip()
-                rpm_raw = (row.get(rpm_col) or "").strip()
-                if not date_raw and not rpm_raw:
+                bpm_raw = (row.get(bpm_col) or "").strip()
+                if not date_raw and not bpm_raw:
                     continue
-                if not date_raw or not rpm_raw:
-                    print(f"row {row_no}: warning (partial pair {date_col}/{rpm_col})")
+                if not date_raw or not bpm_raw:
+                    print(f"row {row_no}: warning (partial pair {date_col}/{bpm_col})")
                     continue
                 normalized = normalize_date(date_raw, default_year)
                 if not normalized:
                     print(f"row {row_no}: warning (invalid date {date_raw})")
                     continue
                 try:
-                    rpm = int(float(rpm_raw))
+                    bpm = int(float(bpm_raw))
                 except ValueError:
-                    print(f"row {row_no}: warning (invalid rpm {rpm_raw})")
+                    print(f"row {row_no}: warning (invalid bpm {bpm_raw})")
                     continue
-                if rpm <= 0:
-                    print(f"row {row_no}: warning (rpm must be > 0)")
+                if bpm <= 0:
+                    print(f"row {row_no}: warning (bpm must be > 0)")
                     continue
 
                 conn.execute(
                     """
-                    INSERT INTO sessions(lick_id, date, rpm)
+                    INSERT INTO sessions(lick_id, date, bpm)
                     VALUES (?, ?, ?)
-                    ON CONFLICT(lick_id, date) DO UPDATE SET rpm = excluded.rpm
+                    ON CONFLICT(lick_id, date) DO UPDATE SET bpm = excluded.bpm
                     """,
-                    (lick_id, normalized, rpm),
+                    (lick_id, normalized, bpm),
                 )
                 imported += 1
 

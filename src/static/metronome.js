@@ -16,7 +16,7 @@ function setMetronomeButtonOpen(isOpen) {
   }
 }
 
-class RpmMetronome extends HTMLElement {
+class BeatsMetronome extends HTMLElement {
   static observedAttributes = ["bpm", "max"];
 
   constructor() {
@@ -123,9 +123,9 @@ class RpmMetronome extends HTMLElement {
     }
   }
 
-  setSignature(beats) {
-    this.beatsPerMeasure = beats;
-    this.beatIndex = Math.min(this.beatIndex, beats - 1);
+  setSignature(count) {
+    this.beatsPerMeasure = count;
+    this.beatIndex = Math.min(this.beatIndex, count - 1);
     this.subdivisionIndex = 0;
     this.render();
   }
@@ -330,7 +330,7 @@ class RpmMetronome extends HTMLElement {
             id="metronomeBpm"
             class="metronome-bpm-display"
             role="status"
-            aria-label="Beats per minute"
+            aria-label="BPM"
           >${this.bpm}</div>
           ${this.renderStepButton(1, "Increase tempo by 1")}
           ${this.renderStepButton(5, "Increase tempo by 5")}
@@ -402,14 +402,14 @@ class RpmMetronome extends HTMLElement {
   }
 }
 
-if (!customElements.get("rpm-metronome")) {
-  customElements.define("rpm-metronome", RpmMetronome);
+if (!customElements.get("beats-metronome")) {
+  customElements.define("beats-metronome", BeatsMetronome);
 }
 
 export function ensureMetronome() {
-  let metronome = document.querySelector("rpm-metronome:not([inline])");
+  let metronome = document.querySelector("beats-metronome:not([inline])");
   if (!metronome) {
-    metronome = document.createElement("rpm-metronome");
+    metronome = document.createElement("beats-metronome");
     document.body.appendChild(metronome);
   }
   return metronome;

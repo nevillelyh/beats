@@ -12,7 +12,7 @@ import {
   getStatsBars,
   getStats,
   getLicks,
-  getSessionRpmRange,
+  getSessionBpmRange,
   hasSessionForDate,
   initSchema,
   openDb,
@@ -47,18 +47,18 @@ describe("db behavior", () => {
     const rows = getLicks(db, null, "artist", "asc", "2026-02-11");
     expect(rows[0].lick_name).toBe("Line A v2");
     expect(rows[0].lick_url).toBe("https://new.example");
-    expect(rows[0].goal_rpm).toBe(150);
+    expect(rows[0].goal_bpm).toBe(150);
   });
 
   test("create licks adds multiple licks in one transaction", () => {
     const ids = createLicks(db, "Pat", [
-      { lickName: "Line A", goalRpm: 120 },
-      { lickName: "Line B", goalRpm: 135 },
+      { lickName: "Line A", goalBpm: 120 },
+      { lickName: "Line B", goalBpm: 135 },
     ]);
 
     const rows = getLicks(db, null, "lick", "asc", "2026-02-11");
     expect(ids).toHaveLength(2);
-    expect(rows.map((row) => ({ name: row.lick_name, goal: row.goal_rpm }))).toEqual([
+    expect(rows.map((row) => ({ name: row.lick_name, goal: row.goal_bpm }))).toEqual([
       { name: "Line A", goal: 120 },
       { name: "Line B", goal: 135 },
     ]);
@@ -73,7 +73,7 @@ describe("db behavior", () => {
   test("update lick requires goal to be at least previous best", () => {
     const lickId = createLick(db, "Pat", "Line A", 200);
     addSession(db, lickId, "2026-02-10", 140);
-    expect(() => updateLick(db, lickId, "Line A", 139)).toThrow("goalRpm must be at least 140");
+    expect(() => updateLick(db, lickId, "Line A", 139)).toThrow("goalBpm must be at least 140");
   });
 
   test("lick aggregates and can_add_today", () => {
@@ -83,7 +83,7 @@ describe("db behavior", () => {
 
     const rows = getLicks(db, null, "artist", "asc", "2026-02-11");
     expect(rows.length).toBe(1);
-    expect(rows[0].best_rpm).toBe(150);
+    expect(rows[0].best_bpm).toBe(150);
     expect(rows[0].pct_of_goal).toBe(75);
     expect(rows[0].first_date).toBe("2026-02-09");
     expect(rows[0].last_date).toBe("2026-02-10");
@@ -107,7 +107,7 @@ describe("db behavior", () => {
     const sessions = getSessions(db, lickId, "date", "desc");
     expect(secondId).toBe(firstId);
     expect(sessions).toHaveLength(1);
-    expect(sessions[0]?.rpm).toBe(150);
+    expect(sessions[0]?.bpm).toBe(150);
   });
 
   test("cannot add when best meets goal", () => {
@@ -118,18 +118,18 @@ describe("db behavior", () => {
     expect(rows[0].can_add_today).toBe(false);
   });
 
-  test("session rpm range uses previous best plus one as minimum and goal as maximum", () => {
-    expect(getSessionRpmRange(1, 200)).toEqual({ min: 2, max: 200 });
-    expect(getSessionRpmRange(150, 200)).toEqual({ min: 151, max: 200 });
-    expect(getSessionRpmRange(152, 200)).toEqual({ min: 153, max: 200 });
-    expect(getSessionRpmRange(200, 200)).toEqual({ min: 200, max: 200 });
+  test("session bpm range uses previous best plus one as minimum and goal as maximum", () => {
+    expect(getSessionBpmRange(1, 200)).toEqual({ min: 2, max: 200 });
+    expect(getSessionBpmRange(150, 200)).toEqual({ min: 151, max: 200 });
+    expect(getSessionBpmRange(152, 200)).toEqual({ min: 153, max: 200 });
+    expect(getSessionBpmRange(200, 200)).toEqual({ min: 200, max: 200 });
   });
 
-  test("session rpm range handles missing best rpm", () => {
-    expect(getSessionRpmRange(null, 180)).toEqual({ min: 1, max: 180 });
+  test("session bpm range handles missing best bpm", () => {
+    expect(getSessionBpmRange(null, 180)).toEqual({ min: 1, max: 180 });
   });
 
-  test("missing best rpm fallback defaults to half goal rounded up to 10", () => {
+  test("missing best bpm fallback defaults to half goal rounded up to 10", () => {
     const fallback180 = Math.ceil((180 / 2) / 10) * 10;
     const fallback185 = Math.ceil((185 / 2) / 10) * 10;
 
@@ -177,7 +177,7 @@ describe("db behavior", () => {
         { date: "2026-02-12", progress_values: [35, 15, 10] },
         { date: "2026-02-13", progress_values: [-5] },
       ],
-      rpms: [
+      bpm_deltas: [
         { date: "2026-02-10", first_sessions: 1, delta_bins: [] },
         { date: "2026-02-11", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }] },
         { date: "2026-02-12", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }, { delta_bin: 35, session_count: 1 }] },

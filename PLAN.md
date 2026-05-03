@@ -1,6 +1,6 @@
-# RPMs
+# Beats
 
-A web app for tracking RPMs of music practice sessions.
+A web app for tracking BPMs of music practice sessions.
 
 ## Goal
 
@@ -15,7 +15,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
 6. Main table sort defaults to **ascending** for all columns.
 7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-8. Use 3 top-level tabs: `RPMs` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
+8. Use 3 top-level tabs: `Beats` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
 9. The shared top navigation includes an in-page metronome popup on all pages.
 
 ## Tech Stack
@@ -38,7 +38,7 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - Define runtime env defaults:
   - `NODE_ENV=production`
   - `PORT=3000`
-  - `DB_PATH=/data/rpms.sqlite`
+  - `DB_PATH=/data/beats.sqlite`
 - Persist SQLite data in a mounted directory (`/data`) so container restarts do not lose data.
 - Start command should run the Bun server entrypoint in production mode.
 - Include a `.dockerignore` file to exclude unnecessary files (`.git`, local DB files, `node_modules`, temp/build artifacts).
@@ -58,14 +58,14 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
   - `artist_id INTEGER NOT NULL REFERENCES artists(id)`
   - `name TEXT NOT NULL`
   - `url TEXT NULL` (optional external reference URL)
-  - `goal_rpm INTEGER NOT NULL CHECK(goal_rpm > 0)`
+  - `goal_bpm INTEGER NOT NULL CHECK(goal_bpm > 0)`
   - `UNIQUE(artist_id, name)`
 
 - `sessions`
   - `id INTEGER PRIMARY KEY`
   - `lick_id INTEGER NOT NULL REFERENCES licks(id)`
   - `date TEXT NOT NULL` (`YYYY-MM-DD`, device-local calendar date)
-  - `rpm INTEGER NOT NULL CHECK(rpm > 0)`
+  - `bpm INTEGER NOT NULL CHECK(bpm > 0)`
   - `UNIQUE(lick_id, date)`
 
 ### Relationships
@@ -78,20 +78,20 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 Provide `scripts/import_csv.py`:
 
 - CLI:
-  - `python scripts/import_csv.py --db data/rpms.sqlite --csv input.csv`
+  - `python scripts/import_csv.py --db data/beats.sqlite --csv input.csv`
   - Optional: `--default-year YYYY` for `MM/DD` date inputs.
 - Supported session column styles:
-  - `Date N` / `RPM N`
-  - `D1` / `R1` (and higher numbered pairs)
+  - `Date N` / `BPM N`
+  - `D1` / `B1` (and higher numbered pairs)
 - Date input formats:
   - `YYYY-MM-DD`
   - `MM/DD`
   - `MM/DD/YYYY`
   - `MM/DD/YY`
 - Rules:
-  - Use `Artist`, `Lick`, `Goal`, and date/RPM pairs.
+  - Use `Artist`, `Lick`, `Goal`, and date/BPM pairs.
   - Ignore derived fields: `Best`, `%`, `First`, `Last`.
-  - Duplicate `(lick, date)` rows are **upserted** (replace RPM).
+  - Duplicate `(lick, date)` rows are **upserted** (replace BPM).
   - Skip malformed pairs with warnings; continue import.
 
 ## API Interfaces
@@ -104,19 +104,19 @@ Provide `scripts/import_csv.py`:
   - Updates artist name with the same unique-name constraint as create.
 - `GET /api/licks?artist_id=&sort_by=&sort_dir=`
   - Returns lick rows with aggregates:
-    - `lick_url`, `best_rpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
+    - `lick_url`, `best_bpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
 - `POST /api/licks`
-  - Body: `{ artistName, lickName, goalRpm, url? }`
+  - Body: `{ artistName, lickName, goalBpm, url? }`
 - `PATCH /api/licks/:lickId`
-  - Body: `{ lickName, goalRpm, url? }`
+  - Body: `{ lickName, goalBpm, url? }`
   - Enforces same per-artist unique lick-name constraint.
-  - Enforces `goalRpm >= best_rpm` when previous sessions exist.
-- `GET /api/licks/:lickId/sessions?sort_by=date|rpm&sort_dir=asc|desc`
+  - Enforces `goalBpm >= best_bpm` when previous sessions exist.
+- `GET /api/licks/:lickId/sessions?sort_by=date|bpm&sort_dir=asc|desc`
 - `POST /api/licks/:lickId/sessions`
-  - Body: `{ rpm }`
+  - Body: `{ bpm }`
   - Client sends `X-Local-Date: YYYY-MM-DD`
-  - Reject if `best >= goal` or `rpm` is outside `[min, goal]`
-  - If a session already exists for today, overwrite that day's RPM instead of creating a second row
+  - Reject if `best >= goal` or `bpm` is outside `[min, goal]`
+  - If a session already exists for today, overwrite that day's BPM instead of creating a second row
   - `min` is `1` when no previous session exists; otherwise `best + 1`
 - `GET /api/stats`
   - Returns per-day practice density:
@@ -124,13 +124,13 @@ Provide `scripts/import_csv.py`:
 - `GET /api/stats/bars`
   - Returns stacked-bar data by day:
     - `sessions`: `first_sessions`, `progression_sessions`, `completion_sessions`
-    - `rpms`: `first_sessions` + absolute-RPM delta bins (`5, 10, 15, ...`)
+    - `bpm_deltas`: `first_sessions` + absolute-BPM delta bins (`5, 10, 15, ...`)
       - Deltas chart uses weighted stack heights:
         - `first` contributes `+5` per first session
         - each bin contributes `delta_bin * session_count`
 - `GET /api/stats/histograms`
   - Returns histogram data:
-    - `session_deltas` (absolute RPM deltas, bucketed by 5)
+    - `session_deltas` (absolute BPM deltas, bucketed by 5)
     - `sessions_to_complete` (completed licks only)
     - `days_to_complete` (completed licks only)
 - `GET /api/stats/progress`
@@ -142,8 +142,8 @@ Provide `scripts/import_csv.py`:
 
 ### Header and toolbar actions
 
-- Top navigation includes `RPMs`, `Trends`, `Stats`, and `Metronome`; it opens a popup in the current page.
-- Do not show a standalone `RPMs` title before the top navigation.
+- Top navigation includes `Beats`, `Trends`, `Stats`, and `Metronome`; it opens a popup in the current page.
+- Do not show a standalone `Beats` title before the top navigation.
 - Highlight the `Metronome` button while its popup is open.
 - Main toolbar first row has two grouped control blocks that can wrap as whole groups on mobile:
   - Artist block: `Artist` label, fixed-width artist dropdown, always-visible edit artist button, and `+` add artist button.
@@ -181,8 +181,8 @@ Columns:
 
 - Artist
 - Lick
-- Goal (RPM)
-- Best (RPM)
+- Goal (BPM)
+- Best (BPM)
 - % (`best / goal * 100`, rounded integer)
 - # (session count)
 - First (date)
@@ -246,7 +246,7 @@ Each lick row has:
 
 - `...` (expand sessions)
   - Disabled when `session_count == 0`
-  - Opens modal with sessions (`date`, `rpm`), sortable by either column
+  - Opens modal with sessions (`date`, `bpm`), sortable by either column
   - Default sort: `date desc`
   - `Esc` closes the sessions modal
 
@@ -255,19 +255,19 @@ Each lick row has:
   - Opens modal with:
     - Context lines:
       - `Lick: <name>`
-      - `Best: <rpm>` (`None` when no prior session exists) and `Goal: <rpm>` on the same line
+      - `Best: <bpm>` (`None` when no prior session exists) and `Goal: <bpm>` on the same line
     - Inline metronome controls, without the standalone metronome title/header
   - Range:
     - Practice tempo can be reduced below the current best
     - `min = 1`
     - `max = goal`
-    - Default RPM value is current best, or `1` when no previous session exists
+    - Default BPM value is current best, or `1` when no previous session exists
   - Save validation:
     - value must be an integer
     - value must stay within `[1, goal]`
     - value must be greater than current best when a prior best exists
     - invalid values disable `Save`
-    - the `RPM must be greater than current best` alert is hidden on open and only shown after an attempted save
+    - the `BPM must be greater than current best` alert is hidden on open and only shown after an attempted save
   - Keyboard UX:
     - `Enter` submits the dialog
     - `Esc` closes the dialog
@@ -280,34 +280,34 @@ Each lick row has:
   - Submit creates today's session, or updates today's existing session when one is already present
 - `Edit` icon in row actions (before `...`)
   - Opens `Edit Lick` dialog for selected lick:
-    - fields: `Lick`, `URL`, `Goal RPM`
+    - fields: `Lick`, `URL`, `Goal BPM`
   - Keyboard UX:
     - `Enter` submits the dialog
     - `Esc` closes the dialog
-    - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
+    - Goal BPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
   - Focus behavior:
-    - desktop focuses the Goal RPM input when the dialog opens
-    - mobile does not focus the Goal RPM input on open, to avoid iOS viewport shifts from the virtual keyboard
+    - desktop focuses the Goal BPM input when the dialog opens
+    - mobile does not focus the Goal BPM input on open, to avoid iOS viewport shifts from the virtual keyboard
   - Validation:
     - same per-artist unique lick-name constraint
-    - minimum goal RPM is prior best session RPM when it exists
+    - minimum goal BPM is prior best session BPM when it exists
     - goal input accepts any integer value (`step=1`) so existing non-5-multiple goals remain editable
 
 ### Trends and Stats pages
 
 - Global tab navigation is shown without a separate page title:
-  - `RPMs` (`/`)
+  - `Beats` (`/`)
   - `Trends` (`/trends.html`)
   - `Stats` (`/stats.html`)
-- Main page title is `RPMs`.
-- `Trends` page (`RPMs - Trends`) renders:
+- Main page title is `Beats`.
+- `Trends` page (`Beats - Trends`) renders:
   - GitHub-style heatmap with month/day axes
   - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)
     - `First+Completion` is for sessions that are both first and completion.
     - Stack order: `First` (bottom), `Progression`, `Completion`, `First+Completion` (top).
-  - `Deltas`: stacked daily bars with `First` at the bottom, then absolute RPM-change bins (`+5`, `+10`, ...)
-    - Legend shows one trailing unit label (`RPM`) instead of repeating units per bin
-    - Stack segment heights are weighted by total RPM change (not raw count):
+  - `Deltas`: stacked daily bars with `First` at the bottom, then absolute BPM-change bins (`+5`, `+10`, ...)
+    - Legend shows one trailing unit label (`BPM`) instead of repeating units per bin
+    - Stack segment heights are weighted by total BPM change (not raw count):
       - `First` = `first_sessions * 5`
       - each delta bin = `delta_bin * session_count`
   - Sessions/Deltas range controls:
@@ -325,7 +325,7 @@ Each lick row has:
     - on mobile default (`1Y`) view, initial scroll is right-aligned so newest days are visible
     - desktop heatmap card width is fixed to match the chart-width model used by the bar-chart cards
     - Safari overflow/truncation is avoided by explicit heatmap-width column sizing (no `max-content` growth)
-- `Stats` page (`RPMs - Stats`) renders:
+- `Stats` page (`Beats - Stats`) renders:
   - `Progress`: best-% distribution bars (`0, 10, 20, ... 100`)
   - `Session Deltas` histogram
   - `Sessions To Completion` histogram
@@ -336,20 +336,20 @@ Each lick row has:
 
 Opened from the toolbar `+` add lick button when an artist filter is active. Modal uses currently selected artist and includes:
 
-- Repeatable rows with `Lick` and inline `Goal RPM` controls on the same row
+- Repeatable rows with `Lick` and inline `Goal BPM` controls on the same row
 - Header-row `+` button to add another row
 - Per-row `-` button to delete that row; first row delete stays disabled so at least one row always remains
 - No URL input in the add flow
-- Default Goal RPM is `120` for each new row
+- Default Goal BPM is `120` for each new row
 - Keyboard UX:
   - `Enter` adds a new row instead of submitting
   - `Esc` closes the dialog
-  - Goal RPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
+  - Goal BPM input supports stepper keys (`ArrowUp`/`+`, `ArrowDown`/`-`) in steps of `5`
 - Focus behavior:
   - desktop focuses the first Lick input when the dialog opens
   - adding a row focuses the new Lick input
   - mobile does not autofocus dialog inputs to avoid iOS viewport shifts from the virtual keyboard
-- Goal RPM input accepts any integer value (`step=1`) while the stepper buttons and keyboard shortcuts still adjust by `5`
+- Goal BPM input accepts any integer value (`step=1`) while the stepper buttons and keyboard shortcuts still adjust by `5`
 
 ### Add artist
 
@@ -373,7 +373,7 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 
 ## Testing and Acceptance Criteria
 
-1. DB constraints enforce uniqueness and positive RPM/goal.
+1. DB constraints enforce uniqueness and positive BPM/goal.
 2. Aggregates are correct for 0/1/N sessions.
 3. Add-session behavior is correct for:
    - `best >= goal`
@@ -386,7 +386,7 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 9. Session modal defaults to date descending and supports sort toggles.
 10. CSV importer:
     - ignores derived fields
-    - supports `Date N/RPM N` and `Dn/Rn`
+    - supports `Date N/BPM N` and `Dn/Bn`
     - accepts configured date formats
     - upserts duplicate lick/date
     - logs malformed pairs
@@ -403,9 +403,9 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 21. Artist edit flow enforces unique artist names.
 22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
-24. Metronome popup is available on RPMs/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
-25. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo beats best, and stops playback when the dialog closes.
-26. RPMs page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
+24. Metronome popup is available on Beats/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
+25. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo exceeds best, and stops playback when the dialog closes.
+26. Beats page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
 
 ## Implementation Milestones
 

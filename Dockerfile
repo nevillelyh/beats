@@ -4,7 +4,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV DB_PATH=/data/rpms.sqlite
+ENV DB_PATH=/data/beats.sqlite
 
 COPY package.json tsconfig.json ./
 COPY src ./src

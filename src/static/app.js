@@ -8,7 +8,7 @@ const VALID_PROGRESS_FILTERS = new Set(["all", "new", "progress", "done"]);
 const STEPPER_INCREMENT_KEYS = ["ArrowUp", "+", "=", "NumpadAdd"];
 const STEPPER_DECREMENT_KEYS = ["ArrowDown", "-", "NumpadSubtract"];
 
-class RpmApp extends LitElement {
+class BeatsApp extends LitElement {
   static properties = {
     artists: { state: true },
     licks: { state: true },
@@ -335,11 +335,11 @@ class RpmApp extends LitElement {
       return;
     }
     this.activeLick = lick;
-    this.addSessionMax = lick.goal_rpm;
-    const defaultRpm = lick.best_rpm === null || lick.best_rpm === undefined
-      ? Math.ceil((lick.goal_rpm / 2) / 10) * 10
-      : lick.best_rpm;
-    this.addValue = Math.max(1, Math.min(this.addSessionMax, defaultRpm));
+    this.addSessionMax = lick.goal_bpm;
+    const defaultBpm = lick.best_bpm === null || lick.best_bpm === undefined
+      ? Math.ceil((lick.goal_bpm / 2) / 10) * 10
+      : lick.best_bpm;
+    this.addValue = Math.max(1, Math.min(this.addSessionMax, defaultBpm));
     this.addSessionSaveAttempted = false;
     this.openDialog("addSessionDialog", { desktopFocusId: "addSessionMetronome" });
   }
@@ -397,13 +397,13 @@ class RpmApp extends LitElement {
 
   addValueValidationError() {
     if (!Number.isInteger(this.addValue)) {
-      return "RPM must be an integer";
+      return "BPM must be an integer";
     }
-    if (this.activeLick?.best_rpm !== null && this.activeLick?.best_rpm !== undefined && this.addValue <= this.activeLick.best_rpm) {
-      return `RPM must be greater than current best (${this.activeLick.best_rpm})`;
+    if (this.activeLick?.best_bpm !== null && this.activeLick?.best_bpm !== undefined && this.addValue <= this.activeLick.best_bpm) {
+      return `BPM must be greater than current best (${this.activeLick.best_bpm})`;
     }
     if (this.addValue < 1 || this.addValue > this.addSessionMax) {
-      return `RPM must be between 1 and ${this.addSessionMax}`;
+      return `BPM must be between 1 and ${this.addSessionMax}`;
     }
     return "";
   }
@@ -429,7 +429,7 @@ class RpmApp extends LitElement {
   }
 
   _createAddLickRow() {
-    return { lickName: "", goalRpm: "120" };
+    return { lickName: "", goalBpm: "120" };
   }
 
   resetAddLickRows() {
@@ -449,20 +449,20 @@ class RpmApp extends LitElement {
   updateAddLickGoal(index, event) {
     const raw = event.target.value;
     if (raw === "") {
-      this._setAddLickRow(index, { goalRpm: "" });
+      this._setAddLickRow(index, { goalBpm: "" });
       return;
     }
     const next = Number(raw);
     if (!Number.isFinite(next)) {
       return;
     }
-    this._setAddLickRow(index, { goalRpm: String(Math.max(1, Math.trunc(next))) });
+    this._setAddLickRow(index, { goalBpm: String(Math.max(1, Math.trunc(next))) });
   }
 
   adjustAddLickGoal(index, delta) {
-    const current = Number(this.addLickRows[index]?.goalRpm || 0);
+    const current = Number(this.addLickRows[index]?.goalBpm || 0);
     const base = Number.isFinite(current) && current > 0 ? current : 120;
-    this._setAddLickRow(index, { goalRpm: String(Math.max(1, base + delta)) });
+    this._setAddLickRow(index, { goalBpm: String(Math.max(1, base + delta)) });
   }
 
   addLickRow(index) {
@@ -491,11 +491,11 @@ class RpmApp extends LitElement {
       return "Enter at least one lick";
     }
     const invalidGoal = populated.find((row) => {
-      const goalRpm = Number(row.goalRpm);
-      return !Number.isInteger(goalRpm) || goalRpm <= 0;
+      const goalBpm = Number(row.goalBpm);
+      return !Number.isInteger(goalBpm) || goalBpm <= 0;
     });
     if (invalidGoal) {
-      return "Each lick needs a positive integer Goal RPM";
+      return "Each lick needs a positive integer Goal BPM";
     }
     return "";
   }
@@ -518,7 +518,7 @@ class RpmApp extends LitElement {
       return;
     }
     if (!this.canAddSession(this.activeLick)) {
-      this.error = "Cannot add session when best RPM already meets/exceeds goal";
+      this.error = "Cannot add session when best BPM already meets/exceeds goal";
       return;
     }
     const addError = this.addValueValidationError();
@@ -530,7 +530,7 @@ class RpmApp extends LitElement {
     try {
       await this.api(`/api/licks/${this.activeLick.id}/sessions`, {
         method: "POST",
-        body: JSON.stringify({ rpm: this.addValue }),
+        body: JSON.stringify({ bpm: this.addValue }),
       });
       this.closeDialog("addSessionDialog");
       await this.reloadLicks();
@@ -546,7 +546,7 @@ class RpmApp extends LitElement {
     const licks = this.addLickRows
       .map((row) => ({
         lickName: row.lickName.trim(),
-        goalRpm: Number(row.goalRpm),
+        goalBpm: Number(row.goalBpm),
       }))
       .filter((row) => row.lickName);
     if (!artistName) {
@@ -575,7 +575,7 @@ class RpmApp extends LitElement {
     this.editLick = lick;
     const nameInput = this.el("editLickName");
     const urlInput = this.el("editLickUrl");
-    const goalInput = this.el("editGoalRpm");
+    const goalInput = this.el("editGoalBpm");
     if (nameInput) {
       nameInput.value = lick.lick_name || "";
     }
@@ -583,21 +583,21 @@ class RpmApp extends LitElement {
       urlInput.value = lick.lick_url || "";
     }
     if (goalInput) {
-      goalInput.value = String(lick.goal_rpm || "");
+      goalInput.value = String(lick.goal_bpm || "");
     }
-    this.openDialog("editLickDialog", { desktopFocusId: "editGoalRpm" });
+    this.openDialog("editLickDialog", { desktopFocusId: "editGoalBpm" });
   }
 
   _editGoalMin() {
-    return this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1);
+    return this.editLick?.best_bpm === null ? 1 : (this.editLick?.best_bpm || 1);
   }
 
   updateEditGoalValue() {
-    this._updateGoalInput("editGoalRpm", this._editGoalMin());
+    this._updateGoalInput("editGoalBpm", this._editGoalMin());
   }
 
   adjustEditGoalValue(delta) {
-    this._adjustGoalInput("editGoalRpm", this._editGoalMin(), delta);
+    this._adjustGoalInput("editGoalBpm", this._editGoalMin(), delta);
   }
 
   async submitEditLick() {
@@ -606,11 +606,11 @@ class RpmApp extends LitElement {
     }
     const lickName = this.el("editLickName").value.trim();
     const url = this.el("editLickUrl").value.trim();
-    const goalRpm = Number(this.el("editGoalRpm").value);
+    const goalBpm = Number(this.el("editGoalBpm").value);
     try {
       await this.api(`/api/licks/${this.editLick.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ lickName, goalRpm, url }),
+        body: JSON.stringify({ lickName, goalBpm, url }),
       });
       this.closeDialog("editLickDialog");
       this.editLick = null;
@@ -751,7 +751,7 @@ class RpmApp extends LitElement {
     const addValidationError = addBlocked ? "" : this.addValueValidationError();
     const showAddValidationError =
       addValidationError
-      && (this.addSessionSaveAttempted || !addValidationError.startsWith("RPM must be greater than current best"));
+      && (this.addSessionSaveAttempted || !addValidationError.startsWith("BPM must be greater than current best"));
     const newCount = this.licks.filter((row) => row.session_count === 0).length;
     const inProgressCount = this.licks.filter((row) => this.isInProgressRow(row)).length;
     const doneCount = this.licks.filter((row) => this.isDoneRow(row)).length;
@@ -786,7 +786,7 @@ class RpmApp extends LitElement {
         <div class="header">
           <div class="nav-row">
             <div class="page-tabs">
-              <a class="btn btn-small btn-primary" href="/">RPMs</a>
+              <a class="btn btn-small btn-primary" href="/">Beats</a>
               <a class="btn btn-small" href="/trends.html">Trends</a>
               <a class="btn btn-small" href="/stats.html">Stats</a>
               <button type="button" class="btn btn-small" data-metronome-open @click=${openMetronome}>Metronome</button>
@@ -926,9 +926,9 @@ class RpmApp extends LitElement {
                                     </div>
                                   </div>
                                   <div class="compact-meta">
-                                    <span>Goal ${row.goal_rpm}</span>
-                                    <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit" : ""}>
-                                      Best ${this.fmt(row.best_rpm)}
+                                    <span>Goal ${row.goal_bpm}</span>
+                                    <span class=${row.best_bpm !== null && row.best_bpm >= row.goal_bpm ? "goal-hit" : ""}>
+                                      Best ${this.fmt(row.best_bpm)}
                                     </span>
                                     <span class=${row.pct_of_goal !== null && row.pct_of_goal >= 100 ? "goal-hit" : ""}>
                                       ${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}
@@ -958,10 +958,10 @@ class RpmApp extends LitElement {
                       <tr>
                         ${this.header("Artist", "artist")}
                         ${this.header("Lick", "lick")}
-                        ${this.header("Goal", "goal", "col-rpm")}
-                        ${this.header("Best", "best", "col-rpm")}
-                        ${this.header("%", "pct", "col-rpm")}
-                        ${this.header("#", "sessions", "col-rpm")}
+                        ${this.header("Goal", "goal", "col-bpm")}
+                        ${this.header("Best", "best", "col-bpm")}
+                        ${this.header("%", "pct", "col-bpm")}
+                        ${this.header("#", "sessions", "col-bpm")}
                         ${this.header("First", "first")}
                         ${this.header("Last", "last")}
                         <th>Actions</th>
@@ -975,18 +975,18 @@ class RpmApp extends LitElement {
                               <tr>
                                 <td>${row.artist_name}</td>
                                 <td class="lick-cell">${this.renderLickName(row)}</td>
-                                <td class="col-rpm">${row.goal_rpm}</td>
-                                <td class="col-rpm">
-                                  <span class=${row.best_rpm !== null && row.best_rpm >= row.goal_rpm ? "goal-hit-text" : ""}>
-                                    ${this.fmt(row.best_rpm)}
+                                <td class="col-bpm">${row.goal_bpm}</td>
+                                <td class="col-bpm">
+                                  <span class=${row.best_bpm !== null && row.best_bpm >= row.goal_bpm ? "goal-hit-text" : ""}>
+                                    ${this.fmt(row.best_bpm)}
                                   </span>
                                 </td>
-                                <td class="col-rpm col-pct">
+                                <td class="col-bpm col-pct">
                                   <span class=${row.pct_of_goal !== null && row.pct_of_goal >= 100 ? "goal-hit-text" : ""}>
                                     ${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}
                                   </span>
                                 </td>
-                                <td class="col-rpm">${row.session_count}</td>
+                                <td class="col-bpm">${row.session_count}</td>
                                 <td>${this.fmt(row.first_date)}</td>
                                 <td>${this.fmt(row.last_date)}</td>
                                 <td>
@@ -1024,13 +1024,13 @@ class RpmApp extends LitElement {
           <thead>
             <tr>
               ${this.sessionHeader("Date", "date")}
-              ${this.sessionHeader("RPM", "rpm")}
+              ${this.sessionHeader("BPM", "bpm")}
             </tr>
           </thead>
           <tbody>
             ${this.sessions.length === 0
               ? html`<tr><td colspan="2" class="row-empty">No sessions.</td></tr>`
-              : this.sessions.map((s) => html`<tr><td>${s.date}</td><td>${s.rpm}</td></tr>`)}
+              : this.sessions.map((s) => html`<tr><td>${s.date}</td><td>${s.bpm}</td></tr>`)}
           </tbody>
         </table>
         <div class="dialog-actions">
@@ -1052,18 +1052,18 @@ class RpmApp extends LitElement {
               ${this.activeLick?.lick_name || "-"}
             </div>
             <div class="muted">
-              Best: ${this.activeLick?.best_rpm === null ? "None" : (this.activeLick?.best_rpm ?? "-")}
-              &nbsp; Goal: ${this.activeLick?.goal_rpm ?? "-"}
+              Best: ${this.activeLick?.best_bpm === null ? "None" : (this.activeLick?.best_bpm ?? "-")}
+              &nbsp; Goal: ${this.activeLick?.goal_bpm ?? "-"}
             </div>
             ${showAddValidationError ? html`<div class="alert">${addValidationError}</div>` : ""}
-            <rpm-metronome
+            <beats-metronome
               id="addSessionMetronome"
               class="add-session-metronome"
               inline
               bpm=${this.addValue}
               max=${this.addSessionMax}
               @bpm-change=${this.onAddSessionTempoChange}
-            ></rpm-metronome>
+            ></beats-metronome>
           </div>
           <div class="dialog-actions">
             <button type="button" class="btn" @click=${() => this.closeDialog("addSessionDialog")}>Cancel</button>
@@ -1083,13 +1083,13 @@ class RpmApp extends LitElement {
             <div class="add-lick-rows">
               <div class="add-lick-row-labels">
                 <span>Lick</span>
-                <span>Goal RPM</span>
+                <span>Goal BPM</span>
                 <button type="button" class="btn btn-primary row-action-btn" aria-label="Add another lick row" @click=${() => this.addLickRow(this.addLickRows.length - 1)}>+</button>
               </div>
               ${this.addLickRows.map((row, index) => {
-                const rowGoal = Number(row.goalRpm || 0);
+                const rowGoal = Number(row.goalBpm || 0);
                 const lickId = index === 0 ? "lickName" : `lickName-${index}`;
-                const goalId = index === 0 ? "goalRpm" : `goalRpm-${index}`;
+                const goalId = index === 0 ? "goalBpm" : `goalBpm-${index}`;
                 return html`
                   <div class="add-lick-row">
                     <input
@@ -1099,16 +1099,16 @@ class RpmApp extends LitElement {
                       @input=${(event) => this.updateAddLickName(index, event)}
                       @keydown=${this._addLickRowKeydown(index)}
                     />
-                    <div class="rpm-stepper add-lick-goal-stepper">
+                    <div class="bpm-stepper add-lick-goal-stepper">
                       ${this.renderStepperButton("-", rowGoal <= 1, (delta) => this.adjustAddLickGoal(index, delta), -5)}
                       <input
                         id=${goalId}
-                        class="rpm-number-input"
+                        class="bpm-number-input"
                         type="number"
                         min="1"
                         step="1"
-                        aria-label=${`Goal RPM ${index + 1}`}
-                        .value=${row.goalRpm}
+                        aria-label=${`Goal BPM ${index + 1}`}
+                        .value=${row.goalBpm}
                         @input=${(event) => this.updateAddLickGoal(index, event)}
                         @keydown=${this._addLickRowKeydown(index, (delta) => this.adjustAddLickGoal(index, delta))}
                       />
@@ -1175,14 +1175,14 @@ class RpmApp extends LitElement {
             <input id="editLickName" />
             <label for="editLickUrl">URL (optional)</label>
             <input id="editLickUrl" type="url" placeholder="https://..." />
-            <label for="editGoalRpm">Goal RPM</label>
-            <div class="rpm-stepper">
+            <label for="editGoalBpm">Goal BPM</label>
+            <div class="bpm-stepper">
               ${this.renderStepperButton("-", false, this.adjustEditGoalValue, -5)}
               <input
-                id="editGoalRpm"
-                class="rpm-number-input"
+                id="editGoalBpm"
+                class="bpm-number-input"
                 type="number"
-                min=${this.editLick?.best_rpm === null ? 1 : (this.editLick?.best_rpm || 1)}
+                min=${this.editLick?.best_bpm === null ? 1 : (this.editLick?.best_bpm || 1)}
                 step="1"
                 @input=${this.updateEditGoalValue}
                 @keydown=${this._stepperKeydown(this.adjustEditGoalValue)}
@@ -1200,4 +1200,4 @@ class RpmApp extends LitElement {
   }
 }
 
-customElements.define("rpm-app", RpmApp);
+customElements.define("beats-app", BeatsApp);

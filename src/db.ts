@@ -12,8 +12,8 @@ export type LickAggregate = {
   artist_name: string;
   lick_name: string;
   lick_url: string | null;
-  goal_rpm: number;
-  best_rpm: number | null;
+  goal_bpm: number;
+  best_bpm: number | null;
   pct_of_goal: number | null;
   first_date: string | null;
   last_date: string | null;
@@ -25,7 +25,7 @@ export type Session = {
   id: number;
   lick_id: number;
   date: string;
-  rpm: number;
+  bpm: number;
 };
 
 export type StatsDay = {
@@ -46,7 +46,7 @@ export type StatsProgressBarsDay = {
   progress_values: number[];
 };
 
-export type StatsRpmBarsDay = {
+export type StatsBpmBarsDay = {
   date: string;
   first_sessions: number;
   delta_bins: Array<{
@@ -58,7 +58,7 @@ export type StatsRpmBarsDay = {
 export type StatsBars = {
   sessions: StatsSessionBarsDay[];
   progress: StatsProgressBarsDay[];
-  rpms: StatsRpmBarsDay[];
+  bpm_deltas: StatsBpmBarsDay[];
 };
 
 export type StatsHistogramBin = {
@@ -77,22 +77,22 @@ export type StatsProgressBin = {
   lick_count: number;
 };
 
-export type SessionRpmRange = {
+export type SessionBpmRange = {
   min: number;
   max: number;
 };
 
 export type CreateLickInput = {
   lickName: string;
-  goalRpm: number;
+  goalBpm: number;
   lickUrl?: string;
 };
 
 const SORT_MAP: Record<string, string> = {
   artist: "artist_name",
   lick: "lick_name",
-  goal: "goal_rpm",
-  best: "best_rpm",
+  goal: "goal_bpm",
+  best: "best_bpm",
   pct: "pct_of_goal",
   sessions: "session_count",
   first: "first_date",
@@ -101,7 +101,7 @@ const SORT_MAP: Record<string, string> = {
 
 const SESSION_SORT_MAP: Record<string, string> = {
   date: "date",
-  rpm: "rpm",
+  bpm: "bpm",
 };
 
 export function openDb(path: string): Database {
@@ -114,12 +114,6 @@ export function initSchema(db: Database): void {
   const schemaPath = new URL("./schema.sql", import.meta.url);
   const sql = readFileSync(schemaPath, "utf8");
   db.exec(sql);
-  // Lightweight migration for existing DBs created before lick URL support.
-  try {
-    db.exec("ALTER TABLE licks ADD COLUMN url TEXT");
-  } catch (_err) {
-    // Ignore duplicate-column errors.
-  }
 }
 
 export function getArtists(db: Database): Artist[] {
@@ -167,10 +161,10 @@ export function createLick(
   db: Database,
   artistName: string,
   lickName: string,
-  goalRpm: number,
+  goalBpm: number,
   lickUrl?: string,
 ): number {
-  return createLicks(db, artistName, [{ lickName, goalRpm, lickUrl }])[0];
+  return createLicks(db, artistName, [{ lickName, goalBpm, lickUrl }])[0];
 }
 
 export function createLicks(
@@ -186,17 +180,17 @@ export function createLicks(
     throw new Error("At least one lick is required");
   }
 
-  const prepared = licks.map(({ lickName, goalRpm, lickUrl }) => {
+  const prepared = licks.map(({ lickName, goalBpm, lickUrl }) => {
     const cleanLick = lickName.trim();
     if (!cleanLick) {
       throw new Error("lickName is required");
     }
-    if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
-      throw new Error("goalRpm must be a positive integer");
+    if (!Number.isInteger(goalBpm) || goalBpm <= 0) {
+      throw new Error("goalBpm must be a positive integer");
     }
     return {
       lickName: cleanLick,
-      goalRpm,
+      goalBpm,
       lickUrl: lickUrl?.trim() ? lickUrl.trim() : null,
     };
   });
@@ -212,7 +206,7 @@ export function createLicks(
       throw new Error("Failed to resolve artist");
     }
 
-    const insertLick = db.query("INSERT INTO licks(artist_id, name, url, goal_rpm) VALUES (?, ?, ?, ?)");
+    const insertLick = db.query("INSERT INTO licks(artist_id, name, url, goal_bpm) VALUES (?, ?, ?, ?)");
     const findCreated = db.query(
       `SELECT id
        FROM licks
@@ -220,7 +214,7 @@ export function createLicks(
     );
 
     for (const lick of prepared) {
-      insertLick.run(row.id, lick.lickName, lick.lickUrl, lick.goalRpm);
+      insertLick.run(row.id, lick.lickName, lick.lickUrl, lick.goalBpm);
       const created = findCreated.get(row.id, lick.lickName) as { id: number } | null;
       if (!created) {
         throw new Error("Failed to create lick");
@@ -236,7 +230,7 @@ export function updateLick(
   db: Database,
   lickId: number,
   lickName: string,
-  goalRpm: number,
+  goalBpm: number,
   lickUrl?: string,
 ): void {
   if (!Number.isInteger(lickId) || lickId <= 0) {
@@ -246,35 +240,35 @@ export function updateLick(
   if (!cleanLick) {
     throw new Error("lickName is required");
   }
-  if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
-    throw new Error("goalRpm must be a positive integer");
+  if (!Number.isInteger(goalBpm) || goalBpm <= 0) {
+    throw new Error("goalBpm must be a positive integer");
   }
 
   const meta = db
     .query(
       `SELECT
          l.id,
-         MAX(s.rpm) AS best_rpm
+         MAX(s.bpm) AS best_bpm
        FROM licks l
        LEFT JOIN sessions s ON s.lick_id = l.id
        WHERE l.id = ?
        GROUP BY l.id`,
     )
-    .get(lickId) as { id: number; best_rpm: number | null } | null;
+    .get(lickId) as { id: number; best_bpm: number | null } | null;
   if (!meta) {
     throw new Error("Lick not found");
   }
 
-  const minGoal = meta.best_rpm === null ? 1 : meta.best_rpm;
-  if (goalRpm < minGoal) {
-    throw new Error(`goalRpm must be at least ${minGoal}`);
+  const minGoal = meta.best_bpm === null ? 1 : meta.best_bpm;
+  if (goalBpm < minGoal) {
+    throw new Error(`goalBpm must be at least ${minGoal}`);
   }
 
   const cleanUrl = lickUrl?.trim() ? lickUrl.trim() : null;
-  db.query("UPDATE licks SET name = ?, url = ?, goal_rpm = ? WHERE id = ?").run(
+  db.query("UPDATE licks SET name = ?, url = ?, goal_bpm = ? WHERE id = ?").run(
     cleanLick,
     cleanUrl,
-    goalRpm,
+    goalBpm,
     lickId,
   );
 }
@@ -296,24 +290,24 @@ export function getLicks(
       a.name AS artist_name,
       l.name AS lick_name,
       l.url AS lick_url,
-      l.goal_rpm,
-      MAX(s.rpm) AS best_rpm,
+      l.goal_bpm,
+      MAX(s.bpm) AS best_bpm,
       CASE
-        WHEN MAX(s.rpm) IS NULL THEN NULL
-        ELSE CAST(ROUND((MAX(s.rpm) * 100.0) / l.goal_rpm) AS INTEGER)
+        WHEN MAX(s.bpm) IS NULL THEN NULL
+        ELSE CAST(ROUND((MAX(s.bpm) * 100.0) / l.goal_bpm) AS INTEGER)
       END AS pct_of_goal,
       MIN(s.date) AS first_date,
       MAX(s.date) AS last_date,
       COUNT(s.id) AS session_count,
       CASE
-        WHEN MAX(s.rpm) >= l.goal_rpm THEN 0
+        WHEN MAX(s.bpm) >= l.goal_bpm THEN 0
         ELSE 1
       END AS can_add_today
     FROM licks l
     JOIN artists a ON a.id = l.artist_id
     LEFT JOIN sessions s ON s.lick_id = l.id
     %ARTIST_FILTER%
-    GROUP BY l.id, a.id, a.name, l.name, l.url, l.goal_rpm
+    GROUP BY l.id, a.id, a.name, l.name, l.url, l.goal_bpm
     ORDER BY ${sortColumn} ${sortDirection}, l.id ASC
   `;
 
@@ -335,18 +329,18 @@ export function getLicks(
 export function getLickMeta(
   db: Database,
   lickId: number,
-): { goal_rpm: number; best_rpm: number | null } | null {
+): { goal_bpm: number; best_bpm: number | null } | null {
   return db
     .query(
       `SELECT
-         l.goal_rpm,
-         MAX(s.rpm) AS best_rpm
+         l.goal_bpm,
+         MAX(s.bpm) AS best_bpm
        FROM licks l
        LEFT JOIN sessions s ON s.lick_id = l.id
        WHERE l.id = ?
-       GROUP BY l.id, l.goal_rpm`,
+       GROUP BY l.id, l.goal_bpm`,
     )
-    .get(lickId) as { goal_rpm: number; best_rpm: number | null } | null;
+    .get(lickId) as { goal_bpm: number; best_bpm: number | null } | null;
 }
 
 export function hasSessionForDate(
@@ -364,19 +358,19 @@ export function addSession(
   db: Database,
   lickId: number,
   date: string,
-  rpm: number,
+  bpm: number,
 ): number {
-  if (!Number.isInteger(rpm) || rpm <= 0) {
-    throw new Error("rpm must be a positive integer");
+  if (!Number.isInteger(bpm) || bpm <= 0) {
+    throw new Error("bpm must be a positive integer");
   }
   db.query(
-    `INSERT INTO sessions(lick_id, date, rpm)
+    `INSERT INTO sessions(lick_id, date, bpm)
      VALUES (?, ?, ?)
-     ON CONFLICT(lick_id, date) DO UPDATE SET rpm = excluded.rpm`,
+     ON CONFLICT(lick_id, date) DO UPDATE SET bpm = excluded.bpm`,
   ).run(
     lickId,
     date,
-    rpm,
+    bpm,
   );
   const row = db
     .query("SELECT id FROM sessions WHERE lick_id = ? AND date = ?")
@@ -387,15 +381,15 @@ export function addSession(
   return row.id;
 }
 
-export function getSessionRpmRange(
-  bestRpm: number | null,
-  goalRpm: number,
-): SessionRpmRange {
-  if (!Number.isInteger(goalRpm) || goalRpm <= 0) {
-    throw new Error("goalRpm must be a positive integer");
+export function getSessionBpmRange(
+  bestBpm: number | null,
+  goalBpm: number,
+): SessionBpmRange {
+  if (!Number.isInteger(goalBpm) || goalBpm <= 0) {
+    throw new Error("goalBpm must be a positive integer");
   }
-  const min = bestRpm === null ? 1 : Math.min(bestRpm + 1, goalRpm);
-  return { min, max: goalRpm };
+  const min = bestBpm === null ? 1 : Math.min(bestBpm + 1, goalBpm);
+  return { min, max: goalBpm };
 }
 
 export function getSessions(
@@ -408,7 +402,7 @@ export function getSessions(
   const sortDirection = sortDir?.toLowerCase() === "desc" ? "DESC" : "ASC";
   return db
     .query(
-      `SELECT id, lick_id, date, rpm
+      `SELECT id, lick_id, date, bpm
        FROM sessions
        WHERE lick_id = ?
        ORDER BY ${sortColumn} ${sortDirection}, id ASC`,
@@ -433,8 +427,8 @@ type SessionRow = {
   id: number;
   lick_id: number;
   date: string;
-  rpm: number;
-  goal_rpm: number;
+  bpm: number;
+  goal_bpm: number;
 };
 
 function querySessionRows(db: Database): SessionRow[] {
@@ -444,8 +438,8 @@ function querySessionRows(db: Database): SessionRow[] {
          s.id,
          s.lick_id,
          s.date,
-         s.rpm,
-         l.goal_rpm
+         s.bpm,
+         l.goal_bpm
        FROM sessions s
        JOIN licks l ON l.id = s.lick_id
        ORDER BY s.lick_id ASC, s.date ASC, s.id ASC`,
@@ -458,16 +452,16 @@ export function getStatsBars(db: Database): StatsBars {
 
   const sessionsByDate = new Map<string, StatsSessionBarsDay>();
   const progressByDate = new Map<string, number[]>();
-  const rpmsByDate = new Map<string, { first_sessions: number; delta_bins: Map<number, number> }>();
+  const bpmDeltasByDate = new Map<string, { first_sessions: number; delta_bins: Map<number, number> }>();
   const lickState = new Map<number, {
     seen: boolean;
     prev_pct: number | null;
-    prev_rpm: number | null;
+    prev_bpm: number | null;
     reached_goal: boolean;
   }>();
 
   for (const row of rows) {
-    const pct = (row.rpm * 100) / row.goal_rpm;
+    const pct = (row.bpm * 100) / row.goal_bpm;
     let day = sessionsByDate.get(row.date);
     if (!day) {
       day = {
@@ -483,21 +477,21 @@ export function getStatsBars(db: Database): StatsBars {
     const state = lickState.get(row.lick_id) ?? {
       seen: false,
       prev_pct: null,
-      prev_rpm: null,
+      prev_bpm: null,
       reached_goal: false,
     };
-    let rpmDay = rpmsByDate.get(row.date);
-    if (!rpmDay) {
-      rpmDay = { first_sessions: 0, delta_bins: new Map<number, number>() };
-      rpmsByDate.set(row.date, rpmDay);
+    let bpmDay = bpmDeltasByDate.get(row.date);
+    if (!bpmDay) {
+      bpmDay = { first_sessions: 0, delta_bins: new Map<number, number>() };
+      bpmDeltasByDate.set(row.date, bpmDay);
     }
 
     if (!state.seen && pct >= 100) {
       day.first_completion_sessions += 1;
-      rpmDay.first_sessions += 1;
+      bpmDay.first_sessions += 1;
     } else if (!state.seen) {
       day.first_sessions += 1;
-      rpmDay.first_sessions += 1;
+      bpmDay.first_sessions += 1;
     } else if (!state.reached_goal && pct >= 100) {
       day.completion_sessions += 1;
     } else {
@@ -505,10 +499,10 @@ export function getStatsBars(db: Database): StatsBars {
     }
 
     const delta = state.prev_pct === null ? 10 : pct - state.prev_pct;
-    if (state.prev_rpm !== null) {
-      const rpmDelta = Math.abs(row.rpm - state.prev_rpm);
-      const deltaBin = Math.max(5, Math.ceil(Math.max(rpmDelta, 0.1) / 5) * 5);
-      rpmDay.delta_bins.set(deltaBin, (rpmDay.delta_bins.get(deltaBin) ?? 0) + 1);
+    if (state.prev_bpm !== null) {
+      const bpmDelta = Math.abs(row.bpm - state.prev_bpm);
+      const deltaBin = Math.max(5, Math.ceil(Math.max(bpmDelta, 0.1) / 5) * 5);
+      bpmDay.delta_bins.set(deltaBin, (bpmDay.delta_bins.get(deltaBin) ?? 0) + 1);
     }
     const roundedDelta = Math.round(delta * 10) / 10;
     const progressParts = progressByDate.get(row.date) ?? [];
@@ -517,7 +511,7 @@ export function getStatsBars(db: Database): StatsBars {
 
     state.seen = true;
     state.prev_pct = pct;
-    state.prev_rpm = row.rpm;
+    state.prev_bpm = row.bpm;
     if (pct >= 100) {
       state.reached_goal = true;
     }
@@ -531,8 +525,8 @@ export function getStatsBars(db: Database): StatsBars {
       date,
       progress_values: progressByDate.get(date) ?? [],
     })),
-    rpms: dates.map((date) => {
-      const row = rpmsByDate.get(date) ?? { first_sessions: 0, delta_bins: new Map<number, number>() };
+    bpm_deltas: dates.map((date) => {
+      const row = bpmDeltasByDate.get(date) ?? { first_sessions: 0, delta_bins: new Map<number, number>() };
       const delta_bins = [...row.delta_bins.entries()]
         .sort((a, b) => a[0] - b[0])
         .map(([delta_bin, session_count]) => ({ delta_bin, session_count }));
@@ -550,13 +544,13 @@ export function getProgressDistribution(db: Database): StatsProgressBin[] {
     .query(
       `SELECT
          l.id,
-         l.goal_rpm,
-         MAX(s.rpm) AS best_rpm
+         l.goal_bpm,
+         MAX(s.bpm) AS best_bpm
        FROM licks l
        LEFT JOIN sessions s ON s.lick_id = l.id
-       GROUP BY l.id, l.goal_rpm`,
+       GROUP BY l.id, l.goal_bpm`,
     )
-    .all() as Array<{ id: number; goal_rpm: number; best_rpm: number | null }>;
+    .all() as Array<{ id: number; goal_bpm: number; best_bpm: number | null }>;
 
   const counts = new Map<number, number>();
   for (let bucket = 0; bucket <= 100; bucket += 10) {
@@ -564,7 +558,7 @@ export function getProgressDistribution(db: Database): StatsProgressBin[] {
   }
 
   for (const row of rows) {
-    const pct = row.best_rpm === null ? 0 : (row.best_rpm * 100) / row.goal_rpm;
+    const pct = row.best_bpm === null ? 0 : (row.best_bpm * 100) / row.goal_bpm;
     const bucket = pct >= 100 ? 100 : Math.floor(Math.max(0, pct) / 10) * 10;
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
@@ -605,8 +599,8 @@ export function getStatsHistograms(db: Database): StatsHistograms {
   const sessionsToCompleteCounts = new Map<number, number>();
   const daysToCompleteCounts = new Map<number, number>();
   const lickState = new Map<number, {
-    goal_rpm: number;
-    prev_rpm: number | null;
+    goal_bpm: number;
+    prev_bpm: number | null;
     first_date: string | null;
     session_count: number;
     completed: boolean;
@@ -614,8 +608,8 @@ export function getStatsHistograms(db: Database): StatsHistograms {
 
   for (const row of rows) {
     const state = lickState.get(row.lick_id) ?? {
-      goal_rpm: row.goal_rpm,
-      prev_rpm: null,
+      goal_bpm: row.goal_bpm,
+      prev_bpm: null,
       first_date: null,
       session_count: 0,
       completed: false,
@@ -625,20 +619,20 @@ export function getStatsHistograms(db: Database): StatsHistograms {
       state.first_date = row.date;
     }
 
-    if (state.prev_rpm !== null) {
-      const delta = Math.abs(row.rpm - state.prev_rpm);
+    if (state.prev_bpm !== null) {
+      const delta = Math.abs(row.bpm - state.prev_bpm);
       const bucket = Math.max(5, Math.ceil(Math.max(delta, 1) / 5) * 5);
       incrementBucket(deltaCounts, bucket);
     }
 
-    if (!state.completed && row.rpm >= state.goal_rpm) {
+    if (!state.completed && row.bpm >= state.goal_bpm) {
       state.completed = true;
       incrementBucket(sessionsToCompleteCounts, state.session_count);
       const days = Math.max(1, diffDaysUtc(state.first_date!, row.date) + 1);
       incrementBucket(daysToCompleteCounts, days);
     }
 
-    state.prev_rpm = row.rpm;
+    state.prev_bpm = row.bpm;
     lickState.set(row.lick_id, state);
   }
 

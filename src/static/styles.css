@@ -228,12 +228,12 @@ body {
   overflow-wrap: anywhere;
 }
 
-.table th.col-rpm,
-.table td.col-rpm {
+.table th.col-bpm,
+.table td.col-bpm {
   text-align: right;
 }
 
-.table td.col-rpm {
+.table td.col-bpm {
   padding-right: 22px;
 }
 
@@ -275,7 +275,7 @@ body {
   border-color: #0d5f87;
 }
 
-.table th.col-rpm button {
+.table th.col-bpm button {
   padding-right: 8px;
 }
 
@@ -412,7 +412,7 @@ body {
   text-transform: uppercase;
 }
 
-.rpm-stepper.add-lick-goal-stepper .rpm-number-input {
+.bpm-stepper.add-lick-goal-stepper .bpm-number-input {
   min-height: 36px;
   width: 64px;
   font-size: inherit;
@@ -433,7 +433,7 @@ body {
   line-height: 1;
 }
 
-.rpm-stepper {
+.bpm-stepper {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -441,7 +441,7 @@ body {
   touch-action: manipulation;
 }
 
-.rpm-stepper .rpm-number-input {
+.bpm-stepper .bpm-number-input {
   width: 100%;
   text-align: center;
   font-size: 1.25rem;
@@ -467,13 +467,13 @@ body {
 }
 
 /* Hide native number spinners so stepper buttons are the only controls. */
-.rpm-number-input::-webkit-outer-spin-button,
-.rpm-number-input::-webkit-inner-spin-button {
+.bpm-number-input::-webkit-outer-spin-button,
+.bpm-number-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.rpm-number-input[type="number"] {
+.bpm-number-input[type="number"] {
   -moz-appearance: textfield;
 }
 
