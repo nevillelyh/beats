@@ -133,6 +133,63 @@
   gap: 4px;
 }
 
+.streak-summary {
+  --cell-size: 12px;
+  --cell-gap: 3px;
+  --axis-width: 34px;
+  --axis-gap: 6px;
+  --weeks: 53;
+  --heatmap-width: calc((var(--weeks) * var(--cell-size)) + ((var(--weeks) - 1) * var(--cell-gap)));
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: calc(var(--axis-width) + var(--axis-gap) + var(--heatmap-width) + 26px);
+  max-width: 100%;
+  margin: 0 auto 14px;
+}
+
+.streak-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(17, 28, 45, 0.06);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.streak-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+  color: var(--accent);
+}
+
+.streak-item:first-child .streak-icon {
+  fill: rgba(15, 111, 159, 0.16);
+}
+
+.streak-label,
+.streak-unit {
+  color: var(--muted);
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.streak-value {
+  font-size: 1.04rem;
+  font-weight: 800;
+}
+
 .stats-bars-wrap {
   --cell-size: 12px;
   --cell-gap: 3px;
@@ -349,9 +406,23 @@
 
 @media (max-width: 480px) {
   .stats-card,
-  .stats-bars-card {
+  .stats-bars-card,
+  .streak-summary {
     width: 100%;
     max-width: 100%;
+  }
+
+  .streak-summary {
+    justify-content: stretch;
+  }
+
+  .streak-item {
+    flex: 1 1 0;
+    padding: 7px 10px;
+  }
+
+  .streak-label {
+    white-space: normal;
   }
 
   .bars-plot {

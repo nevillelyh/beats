@@ -23,6 +23,11 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
+function dateKeyToDayNumber(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day) / (24 * 60 * 60 * 1000));
+}
+
 function startOfWeekSunday(date) {
   const out = new Date(date);
   out.setHours(12, 0, 0, 0);
@@ -308,6 +313,68 @@ function buildBarsDateWindow(rangeValue, earliestDate) {
 
 function fillDateWindow(map, dates, defaultFn) {
   return dates.map((date) => map.get(date) ?? defaultFn(date));
+}
+
+function calculateStreaks(rows) {
+  const activeDays = [...new Set(
+    rows
+      .filter((row) => row.session_count > 0)
+      .map((row) => dateKeyToDayNumber(row.date)),
+  )].sort((a, b) => a - b);
+
+  let longest = 0;
+  let run = 0;
+  let previous = null;
+  for (const day of activeDays) {
+    run = previous !== null && day === previous + 1 ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    previous = day;
+  }
+
+  const activeDaySet = new Set(activeDays);
+  let current = 0;
+  let cursor = dateKeyToDayNumber(formatDate(new Date()));
+  while (activeDaySet.has(cursor)) {
+    current += 1;
+    cursor -= 1;
+  }
+
+  return { current, longest };
+}
+
+function streakIcon(kind) {
+  if (kind === "current") {
+    return `
+      <svg class="streak-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 22c4.4 0 7-2.7 7-6.5 0-2.5-1.3-4.6-3.1-6.4-.5 2-1.7 3.1-3.2 3.7.6-3.5-.9-6.2-3.9-8.8.2 3.4-1 5.3-2.7 7.2-1.3 1.4-2.1 2.7-2.1 4.5C4 19.5 7.1 22 12 22Z"/>
+      </svg>
+    `;
+  }
+  return `
+    <svg class="streak-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M8 21h8"/>
+      <path d="M12 17v4"/>
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/>
+      <path d="M7 6H4v2a4 4 0 0 0 4 4"/>
+      <path d="M17 6h3v2a4 4 0 0 1-4 4"/>
+    </svg>
+  `;
+}
+
+function renderStreakSummary(target, rows) {
+  const streaks = calculateStreaks(rows);
+  target.innerHTML = `
+    <div class="streak-item">
+      ${streakIcon("current")}
+      <span class="streak-label">Streak</span>
+      <span class="streak-value">${streaks.current}</span>
+    </div>
+    <div class="streak-item">
+      ${streakIcon("longest")}
+      <span class="streak-label">Longest</span>
+      <span class="streak-value">${streaks.longest}</span>
+    </div>
+  `;
 }
 
 async function fetchJson(path, headers) {
@@ -607,6 +674,7 @@ async function loadStats() {
   const statsBarsWrap = document.querySelector(".stats-bars-wrap");
   const grid = document.querySelector("#statsGrid");
   const statsWrap = document.querySelector(".stats-wrap");
+  const statsStreaks = document.querySelector("#statsStreaks");
   const rangeButtons = document.querySelector("#statsRangeButtons");
   const monthAxis = document.querySelector("#statsMonthAxis");
   const weekdayAxis = document.querySelector("#statsWeekdayAxis");
@@ -669,6 +737,9 @@ async function loadStats() {
 
     if (hasHeatmap) {
       const rows = summaryPayload?.data || [];
+      if (statsStreaks) {
+        renderStreakSummary(statsStreaks, rows);
+      }
       const rangeOptions = buildRangeOptions(rows);
       let activeRangeValue = "rolling";
       const renderActiveRange = () => {
