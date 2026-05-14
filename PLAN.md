@@ -302,6 +302,7 @@ Each lick row has:
 - Main page title is `Beats`.
 - `Trends` page (`Beats - Trends`) renders:
   - A top streak summary row above the graphs showing current streak and longest streak with compact icons.
+    - If there is no session today, current streak shows the run through yesterday instead of resetting to `0`.
   - GitHub-style heatmap with month/day axes
   - `Sessions`: stacked daily bars (`First`, `Progression`, `First+Completion`, `Completion`)
     - `First+Completion` is for sessions that are both first and completion.
@@ -398,7 +399,7 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
 16. Docker image builds and app starts on port `3000`.
 17. SQLite file persists across restarts when `/data` is mounted.
-18. Trends page renders current/longest streaks and a contribution-style grid with month/day axes using `/api/stats`.
+18. Trends page renders current/longest streaks and a contribution-style grid with month/day axes using `/api/stats`; current streak preserves the run through yesterday when there is no session today.
 19. Trends and Stats pages render only their owned graph sections from shared stats APIs.
 20. Stats page uses a 2-per-row chart layout on wide screens.
 21. Artist edit flow enforces unique artist names.
