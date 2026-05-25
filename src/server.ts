@@ -21,10 +21,20 @@ import {
 } from "./db";
 
 const PORT = Number(process.env.PORT || 3000);
-const DB_PATH = process.env.DB_PATH || "data/beats.sqlite";
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const db = openDb(DB_PATH);
-initSchema(db);
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL environment variable is required");
+  process.exit(1);
+}
+
+const db = openDb(DATABASE_URL);
+try {
+  await initSchema(db);
+  console.log("Database schema initialized successfully");
+} catch (err) {
+  console.error("Failed to initialize database schema:", err);
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -46,7 +56,10 @@ function notFound(message: string): Response {
 
 function handleDbError(err: unknown, uniqueMsg: string): Response {
   const message = (err as Error).message;
-  if (message.includes("UNIQUE constraint failed")) return badRequest(uniqueMsg);
+  // postgres unique constraint failure has different error message pattern (typically contains "unique constraint" or similar)
+  if (message.includes("unique constraint") || message.includes("UNIQUE constraint failed")) {
+    return badRequest(uniqueMsg);
+  }
   if (message.includes("not found")) return notFound(message);
   return badRequest(message);
 }
@@ -70,7 +83,7 @@ function parseOptionalPositiveIntParam(value: string | null, name: string): numb
 
 async function handleApi(req: Request, url: URL): Promise<Response | null> {
   if (url.pathname === "/api/artists" && req.method === "GET") {
-    return json({ data: getArtists(db) });
+    return json({ data: await getArtists(db) });
   }
 
   if (url.pathname === "/api/artists" && req.method === "POST") {
@@ -79,7 +92,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       if (!body.artistName) {
         return badRequest("artistName is required");
       }
-      const id = createArtist(db, body.artistName);
+      const id = await createArtist(db, body.artistName);
       return json({ id }, 201);
     } catch (err) {
       return handleDbError(err, "Artist already exists");
@@ -94,7 +107,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       if (!body.artistName) {
         return badRequest("artistName is required");
       }
-      updateArtist(db, artistId, body.artistName);
+      await updateArtist(db, artistId, body.artistName);
       return json({ ok: true });
     } catch (err) {
       return handleDbError(err, "Artist already exists");
@@ -107,7 +120,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const sortBy = url.searchParams.get("sort_by") || "artist";
       const sortDir = url.searchParams.get("sort_dir") || "asc";
       const localDate = normalizeLocalDate(req.headers.get("x-local-date"));
-      const rows = getLicks(db, artistId, sortBy, sortDir, localDate);
+      const rows = await getLicks(db, artistId, sortBy, sortDir, localDate);
       return json({ data: rows });
     } catch (err) {
       return badRequest((err as Error).message);
@@ -115,19 +128,19 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
   }
 
   if (url.pathname === "/api/stats" && req.method === "GET") {
-    return json({ data: getStats(db) });
+    return json({ data: await getStats(db) });
   }
 
   if (url.pathname === "/api/stats/bars" && req.method === "GET") {
-    return json({ data: getStatsBars(db) });
+    return json({ data: await getStatsBars(db) });
   }
 
   if (url.pathname === "/api/stats/histograms" && req.method === "GET") {
-    return json({ data: getStatsHistograms(db) });
+    return json({ data: await getStatsHistograms(db) });
   }
 
   if (url.pathname === "/api/stats/progress" && req.method === "GET") {
-    return json({ data: getProgressDistribution(db) });
+    return json({ data: await getProgressDistribution(db) });
   }
 
   if (url.pathname === "/api/licks" && req.method === "POST") {
@@ -150,7 +163,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
         if (body.licks.length === 0) {
           return badRequest("At least one lick is required");
         }
-        const ids = createLicks(
+        const ids = await createLicks(
           db,
           body.artistName,
           body.licks.map((lick) => ({
@@ -164,7 +177,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       if (!body.lickName || !body.goalBpm) {
         return badRequest("artistName, lickName, and goalBpm are required");
       }
-      const id = createLick(db, body.artistName, body.lickName, body.goalBpm, body.url);
+      const id = await createLick(db, body.artistName, body.lickName, body.goalBpm, body.url);
       return json({ id, ids: [id] }, 201);
     } catch (err) {
       return handleDbError(err, "Lick already exists for this artist");
@@ -183,7 +196,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       if (!body.lickName || !body.goalBpm) {
         return badRequest("lickName and goalBpm are required");
       }
-      updateLick(db, lickId, body.lickName, body.goalBpm, body.url);
+      await updateLick(db, lickId, body.lickName, body.goalBpm, body.url);
       return json({ ok: true });
     } catch (err) {
       return handleDbError(err, "Lick already exists for this artist");
@@ -196,7 +209,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       const lickId = parseRouteId(sessionListMatch);
       const sortBy = url.searchParams.get("sort_by") || "date";
       const sortDir = url.searchParams.get("sort_dir") || "desc";
-      const rows = getSessions(db, lickId, sortBy, sortDir);
+      const rows = await getSessions(db, lickId, sortBy, sortDir);
       return json({ data: rows });
     } catch (err) {
       return badRequest((err as Error).message);
@@ -213,7 +226,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       }
 
       const localDate = normalizeLocalDate(req.headers.get("x-local-date"));
-      const meta = getLickMeta(db, lickId);
+      const meta = await getLickMeta(db, lickId);
       if (!meta) {
         return notFound("Lick not found");
       }
@@ -227,7 +240,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
         return badRequest(`bpm must be between ${range.min} and ${range.max}`);
       }
 
-      const id = addSession(db, lickId, localDate, bpm);
+      const id = await addSession(db, lickId, localDate, bpm);
       return json({ id }, 201);
     } catch (err) {
       return badRequest((err as Error).message);
@@ -275,4 +288,4 @@ Bun.serve({
 });
 
 console.log(`Beats running on http://localhost:${PORT}`);
-console.log(`Using DB_PATH=${DB_PATH}`);
+console.log(`Using DATABASE_URL=${DATABASE_URL}`);

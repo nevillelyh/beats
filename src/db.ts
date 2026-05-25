@@ -1,5 +1,5 @@
-import { Database } from "bun:sqlite";
 import { readFileSync } from "node:fs";
+import postgres from "postgres";
 
 export type Artist = {
   id: number;
@@ -104,41 +104,38 @@ const SESSION_SORT_MAP: Record<string, string> = {
   bpm: "bpm",
 };
 
-export function openDb(path: string): Database {
-  const db = new Database(path, { create: true, strict: true });
-  db.exec("PRAGMA foreign_keys = ON;");
-  return db;
+export function openDb(url: string): postgres.Sql {
+  return postgres(url);
 }
 
-export function initSchema(db: Database): void {
+export async function initSchema(db: postgres.Sql): Promise<void> {
   const schemaPath = new URL("./schema.sql", import.meta.url);
   const sql = readFileSync(schemaPath, "utf8");
-  db.exec(sql);
+  await db.unsafe(sql);
 }
 
-export function getArtists(db: Database): Artist[] {
-  return db
-    .query("SELECT id, name FROM artists ORDER BY name ASC")
-    .all() as Artist[];
+export async function getArtists(db: postgres.Sql): Promise<Artist[]> {
+  const rows = await db<Artist[]>`SELECT id, name FROM artists ORDER BY name ASC`;
+  return rows.map(r => ({
+    id: Number(r.id),
+    name: String(r.name)
+  }));
 }
 
-export function createArtist(db: Database, artistName: string): number {
+export async function createArtist(db: postgres.Sql, artistName: string): Promise<number> {
   const cleanArtist = artistName.trim();
   if (!cleanArtist) {
     throw new Error("artistName is required");
   }
 
-  db.query("INSERT INTO artists(name) VALUES (?)").run(cleanArtist);
-  const row = db
-    .query("SELECT id FROM artists WHERE name = ?")
-    .get(cleanArtist) as { id: number } | null;
-  if (!row) {
+  const rows = await db<{ id: number }[]>`INSERT INTO artists(name) VALUES (${cleanArtist}) RETURNING id`;
+  if (rows.length === 0) {
     throw new Error("Failed to create artist");
   }
-  return row.id;
+  return Number(rows[0].id);
 }
 
-export function updateArtist(db: Database, artistId: number, artistName: string): void {
+export async function updateArtist(db: postgres.Sql, artistId: number, artistName: string): Promise<void> {
   if (!Number.isInteger(artistId) || artistId <= 0) {
     throw new Error("artistId must be a positive integer");
   }
@@ -147,31 +144,30 @@ export function updateArtist(db: Database, artistId: number, artistName: string)
     throw new Error("artistName is required");
   }
 
-  const existing = db
-    .query("SELECT id FROM artists WHERE id = ?")
-    .get(artistId) as { id: number } | null;
-  if (!existing) {
+  const existing = await db`SELECT id FROM artists WHERE id = ${artistId}`;
+  if (existing.length === 0) {
     throw new Error("Artist not found");
   }
 
-  db.query("UPDATE artists SET name = ? WHERE id = ?").run(cleanArtist, artistId);
+  await db`UPDATE artists SET name = ${cleanArtist} WHERE id = ${artistId}`;
 }
 
-export function createLick(
-  db: Database,
+export async function createLick(
+  db: postgres.Sql,
   artistName: string,
   lickName: string,
   goalBpm: number,
   lickUrl?: string,
-): number {
-  return createLicks(db, artistName, [{ lickName, goalBpm, lickUrl }])[0];
+): Promise<number> {
+  const ids = await createLicks(db, artistName, [{ lickName, goalBpm, lickUrl }]);
+  return ids[0];
 }
 
-export function createLicks(
-  db: Database,
+export async function createLicks(
+  db: postgres.Sql,
   artistName: string,
   licks: CreateLickInput[],
-): number[] {
+): Promise<number[]> {
   const cleanArtist = artistName.trim();
   if (!cleanArtist) {
     throw new Error("artistName is required");
@@ -197,42 +193,37 @@ export function createLicks(
 
   const createdIds: number[] = [];
 
-  db.transaction(() => {
-    db.query("INSERT OR IGNORE INTO artists(name) VALUES (?)").run(cleanArtist);
-    const row = db
-      .query("SELECT id FROM artists WHERE name = ?")
-      .get(cleanArtist) as { id: number } | null;
-    if (!row) {
+  await db.begin(async (sql) => {
+    await sql`INSERT INTO artists(name) VALUES (${cleanArtist}) ON CONFLICT (name) DO NOTHING`;
+    const row = await sql<{ id: number }[]>`SELECT id FROM artists WHERE name = ${cleanArtist}`;
+    if (row.length === 0) {
       throw new Error("Failed to resolve artist");
     }
-
-    const insertLick = db.query("INSERT INTO licks(artist_id, name, url, goal_bpm) VALUES (?, ?, ?, ?)");
-    const findCreated = db.query(
-      `SELECT id
-       FROM licks
-       WHERE artist_id = ? AND name = ?`,
-    );
+    const artistId = Number(row[0].id);
 
     for (const lick of prepared) {
-      insertLick.run(row.id, lick.lickName, lick.lickUrl, lick.goalBpm);
-      const created = findCreated.get(row.id, lick.lickName) as { id: number } | null;
-      if (!created) {
+      const created = await sql<{ id: number }[]>`
+        INSERT INTO licks(artist_id, name, url, goal_bpm)
+        VALUES (${artistId}, ${lick.lickName}, ${lick.lickUrl}, ${lick.goalBpm})
+        RETURNING id
+      `;
+      if (created.length === 0) {
         throw new Error("Failed to create lick");
       }
-      createdIds.push(created.id);
+      createdIds.push(Number(created[0].id));
     }
-  })();
+  });
 
   return createdIds;
 }
 
-export function updateLick(
-  db: Database,
+export async function updateLick(
+  db: postgres.Sql,
   lickId: number,
   lickName: string,
   goalBpm: number,
   lickUrl?: string,
-): void {
+): Promise<void> {
   if (!Number.isInteger(lickId) || lickId <= 0) {
     throw new Error("lickId must be a positive integer");
   }
@@ -244,42 +235,37 @@ export function updateLick(
     throw new Error("goalBpm must be a positive integer");
   }
 
-  const meta = db
-    .query(
-      `SELECT
-         l.id,
-         MAX(s.bpm) AS best_bpm
-       FROM licks l
-       LEFT JOIN sessions s ON s.lick_id = l.id
-       WHERE l.id = ?
-       GROUP BY l.id`,
-    )
-    .get(lickId) as { id: number; best_bpm: number | null } | null;
-  if (!meta) {
+  const rows = await db<{ id: number; best_bpm: string | number | null }[]>`
+    SELECT
+      l.id,
+      MAX(s.bpm) AS best_bpm
+    FROM licks l
+    LEFT JOIN sessions s ON s.lick_id = l.id
+    WHERE l.id = ${lickId}
+    GROUP BY l.id
+  `;
+  if (rows.length === 0) {
     throw new Error("Lick not found");
   }
+  const meta = rows[0];
+  const bestBpm = meta.best_bpm === null ? null : Number(meta.best_bpm);
 
-  const minGoal = meta.best_bpm === null ? 1 : meta.best_bpm;
+  const minGoal = bestBpm === null ? 1 : bestBpm;
   if (goalBpm < minGoal) {
     throw new Error(`goalBpm must be at least ${minGoal}`);
   }
 
   const cleanUrl = lickUrl?.trim() ? lickUrl.trim() : null;
-  db.query("UPDATE licks SET name = ?, url = ?, goal_bpm = ? WHERE id = ?").run(
-    cleanLick,
-    cleanUrl,
-    goalBpm,
-    lickId,
-  );
+  await db`UPDATE licks SET name = ${cleanLick}, url = ${cleanUrl}, goal_bpm = ${goalBpm} WHERE id = ${lickId}`;
 }
 
-export function getLicks(
-  db: Database,
+export async function getLicks(
+  db: postgres.Sql,
   artistId: number | null,
   sortBy: string,
   sortDir: string,
   localDate: string,
-): LickAggregate[] {
+): Promise<LickAggregate[]> {
   const sortColumn = SORT_MAP[sortBy] ?? "artist_name";
   const sortDirection = sortDir?.toLowerCase() === "desc" ? "DESC" : "ASC";
 
@@ -300,8 +286,8 @@ export function getLicks(
       MAX(s.date) AS last_date,
       COUNT(s.id) AS session_count,
       CASE
-        WHEN MAX(s.bpm) >= l.goal_bpm THEN 0
-        ELSE 1
+        WHEN MAX(s.bpm) >= l.goal_bpm THEN FALSE
+        ELSE TRUE
       END AS can_add_today
     FROM licks l
     JOIN artists a ON a.id = l.artist_id
@@ -311,74 +297,82 @@ export function getLicks(
     ORDER BY ${sortColumn} ${sortDirection}, l.id ASC
   `;
 
+  let rows;
   if (artistId === null) {
     const sql = base.replace("%ARTIST_FILTER%", "");
-    return db
-      .query(sql)
-      .all()
-      .map((r) => ({ ...r, can_add_today: Boolean((r as any).can_add_today) })) as LickAggregate[];
+    rows = await db.unsafe(sql);
+  } else {
+    const sql = base.replace("%ARTIST_FILTER%", "WHERE a.id = $1");
+    rows = await db.unsafe(sql, [artistId]);
   }
 
-  const sql = base.replace("%ARTIST_FILTER%", "WHERE a.id = ?");
-  return db
-    .query(sql)
-    .all(artistId)
-    .map((r) => ({ ...r, can_add_today: Boolean((r as any).can_add_today) })) as LickAggregate[];
+  return rows.map((r: any) => ({
+    id: Number(r.id),
+    artist_id: Number(r.artist_id),
+    artist_name: String(r.artist_name),
+    lick_name: String(r.lick_name),
+    lick_url: r.lick_url ? String(r.lick_url) : null,
+    goal_bpm: Number(r.goal_bpm),
+    best_bpm: r.best_bpm === null ? null : Number(r.best_bpm),
+    pct_of_goal: r.pct_of_goal === null ? null : Number(r.pct_of_goal),
+    first_date: r.first_date ? String(r.first_date) : null,
+    last_date: r.last_date ? String(r.last_date) : null,
+    session_count: Number(r.session_count),
+    can_add_today: Boolean(r.can_add_today),
+  })) as LickAggregate[];
 }
 
-export function getLickMeta(
-  db: Database,
+export async function getLickMeta(
+  db: postgres.Sql,
   lickId: number,
-): { goal_bpm: number; best_bpm: number | null } | null {
-  return db
-    .query(
-      `SELECT
-         l.goal_bpm,
-         MAX(s.bpm) AS best_bpm
-       FROM licks l
-       LEFT JOIN sessions s ON s.lick_id = l.id
-       WHERE l.id = ?
-       GROUP BY l.id, l.goal_bpm`,
-    )
-    .get(lickId) as { goal_bpm: number; best_bpm: number | null } | null;
+): Promise<{ goal_bpm: number; best_bpm: number | null } | null> {
+  const rows = await db<{ goal_bpm: number; best_bpm: string | number | null }[]>`
+    SELECT
+      l.goal_bpm,
+      MAX(s.bpm) AS best_bpm
+    FROM licks l
+    LEFT JOIN sessions s ON s.lick_id = l.id
+    WHERE l.id = ${lickId}
+    GROUP BY l.id, l.goal_bpm
+  `;
+  if (rows.length === 0) {
+    return null;
+  }
+  return {
+    goal_bpm: Number(rows[0].goal_bpm),
+    best_bpm: rows[0].best_bpm === null ? null : Number(rows[0].best_bpm),
+  };
 }
 
-export function hasSessionForDate(
-  db: Database,
+export async function hasSessionForDate(
+  db: postgres.Sql,
   lickId: number,
   date: string,
-): boolean {
-  const row = db
-    .query("SELECT 1 AS found FROM sessions WHERE lick_id = ? AND date = ?")
-    .get(lickId, date) as { found: number } | null;
-  return Boolean(row?.found);
+): Promise<boolean> {
+  const rows = await db`SELECT 1 AS found FROM sessions WHERE lick_id = ${lickId} AND date = ${date}`;
+  return rows.length > 0;
 }
 
-export function addSession(
-  db: Database,
+export async function addSession(
+  db: postgres.Sql,
   lickId: number,
   date: string,
   bpm: number,
-): number {
+): Promise<number> {
   if (!Number.isInteger(bpm) || bpm <= 0) {
     throw new Error("bpm must be a positive integer");
   }
-  db.query(
-    `INSERT INTO sessions(lick_id, date, bpm)
-     VALUES (?, ?, ?)
-     ON CONFLICT(lick_id, date) DO UPDATE SET bpm = excluded.bpm`,
-  ).run(
-    lickId,
-    date,
-    bpm,
-  );
-  const row = db
-    .query("SELECT id FROM sessions WHERE lick_id = ? AND date = ?")
-    .get(lickId, date) as { id: number } | null;
-  if (!row) {
+
+  const rows = await db<{ id: number }[]>`
+    INSERT INTO sessions(lick_id, date, bpm)
+    VALUES (${lickId}, ${date}, ${bpm})
+    ON CONFLICT(lick_id, date) DO UPDATE SET bpm = EXCLUDED.bpm
+    RETURNING id
+  `;
+  if (rows.length === 0) {
     throw new Error("Failed to create session");
   }
-  return row.id;
+  return Number(rows[0].id);
 }
 
 export function getSessionBpmRange(
@@ -392,35 +386,44 @@ export function getSessionBpmRange(
   return { min, max: goalBpm };
 }
 
-export function getSessions(
-  db: Database,
+export async function getSessions(
+  db: postgres.Sql,
   lickId: number,
   sortBy: string,
   sortDir: string,
-): Session[] {
+): Promise<Session[]> {
   const sortColumn = SESSION_SORT_MAP[sortBy] ?? "date";
   const sortDirection = sortDir?.toLowerCase() === "desc" ? "DESC" : "ASC";
-  return db
-    .query(
-      `SELECT id, lick_id, date, bpm
-       FROM sessions
-       WHERE lick_id = ?
-       ORDER BY ${sortColumn} ${sortDirection}, id ASC`,
-    )
-    .all(lickId) as Session[];
+  
+  const query = `
+    SELECT id, lick_id, date, bpm
+    FROM sessions
+    WHERE lick_id = $1
+    ORDER BY ${sortColumn} ${sortDirection}, id ASC
+  `;
+
+  const rows = await db.unsafe(query, [lickId]);
+  return rows.map((r: any) => ({
+    id: Number(r.id),
+    lick_id: Number(r.lick_id),
+    date: String(r.date),
+    bpm: Number(r.bpm),
+  }));
 }
 
-export function getStats(db: Database): StatsDay[] {
-  return db
-    .query(
-      `SELECT
-         date,
-         COUNT(*) AS session_count
-       FROM sessions
-       GROUP BY date
-       ORDER BY date ASC`,
-    )
-    .all() as StatsDay[];
+export async function getStats(db: postgres.Sql): Promise<StatsDay[]> {
+  const rows = await db`
+    SELECT
+      date,
+      COUNT(*)::integer AS session_count
+    FROM sessions
+    GROUP BY date
+    ORDER BY date ASC
+  `;
+  return rows.map((r: any) => ({
+    date: String(r.date),
+    session_count: Number(r.session_count),
+  }));
 }
 
 type SessionRow = {
@@ -431,24 +434,29 @@ type SessionRow = {
   goal_bpm: number;
 };
 
-function querySessionRows(db: Database): SessionRow[] {
-  return db
-    .query(
-      `SELECT
-         s.id,
-         s.lick_id,
-         s.date,
-         s.bpm,
-         l.goal_bpm
-       FROM sessions s
-       JOIN licks l ON l.id = s.lick_id
-       ORDER BY s.lick_id ASC, s.date ASC, s.id ASC`,
-    )
-    .all() as SessionRow[];
+async function querySessionRows(db: postgres.Sql): Promise<SessionRow[]> {
+  const rows = await db`
+    SELECT
+      s.id,
+      s.lick_id,
+      s.date,
+      s.bpm,
+      l.goal_bpm
+    FROM sessions s
+    JOIN licks l ON l.id = s.lick_id
+    ORDER BY s.lick_id ASC, s.date ASC, s.id ASC
+  `;
+  return rows.map((r: any) => ({
+    id: Number(r.id),
+    lick_id: Number(r.lick_id),
+    date: String(r.date),
+    bpm: Number(r.bpm),
+    goal_bpm: Number(r.goal_bpm),
+  }));
 }
 
-export function getStatsBars(db: Database): StatsBars {
-  const rows = querySessionRows(db);
+export async function getStatsBars(db: postgres.Sql): Promise<StatsBars> {
+  const rows = await querySessionRows(db);
 
   const sessionsByDate = new Map<string, StatsSessionBarsDay>();
   const progressByDate = new Map<string, number[]>();
@@ -539,18 +547,16 @@ export function getStatsBars(db: Database): StatsBars {
   };
 }
 
-export function getProgressDistribution(db: Database): StatsProgressBin[] {
-  const rows = db
-    .query(
-      `SELECT
-         l.id,
-         l.goal_bpm,
-         MAX(s.bpm) AS best_bpm
-       FROM licks l
-       LEFT JOIN sessions s ON s.lick_id = l.id
-       GROUP BY l.id, l.goal_bpm`,
-    )
-    .all() as Array<{ id: number; goal_bpm: number; best_bpm: number | null }>;
+export async function getProgressDistribution(db: postgres.Sql): Promise<StatsProgressBin[]> {
+  const rows = await db<{ id: number; goal_bpm: number; best_bpm: string | number | null }[]>`
+    SELECT
+      l.id,
+      l.goal_bpm,
+      MAX(s.bpm) AS best_bpm
+    FROM licks l
+    LEFT JOIN sessions s ON s.lick_id = l.id
+    GROUP BY l.id, l.goal_bpm
+  `;
 
   const counts = new Map<number, number>();
   for (let bucket = 0; bucket <= 100; bucket += 10) {
@@ -558,7 +564,8 @@ export function getProgressDistribution(db: Database): StatsProgressBin[] {
   }
 
   for (const row of rows) {
-    const pct = row.best_bpm === null ? 0 : (row.best_bpm * 100) / row.goal_bpm;
+    const bestBpm = row.best_bpm === null ? null : Number(row.best_bpm);
+    const pct = bestBpm === null ? 0 : (bestBpm * 100) / Number(row.goal_bpm);
     const bucket = pct >= 100 ? 100 : Math.floor(Math.max(0, pct) / 10) * 10;
     counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
   }
@@ -592,8 +599,8 @@ function diffDaysUtc(start: string, end: string): number {
   return Math.floor((endMs - startMs) / 86400000);
 }
 
-export function getStatsHistograms(db: Database): StatsHistograms {
-  const rows = querySessionRows(db);
+export async function getStatsHistograms(db: postgres.Sql): Promise<StatsHistograms> {
+  const rows = await querySessionRows(db);
 
   const deltaCounts = new Map<number, number>();
   const sessionsToCompleteCounts = new Map<number, number>();

@@ -4,29 +4,28 @@ A web app for tracking BPMs of music practice sessions.
 
 ## Goal
 
-Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress over time, with local SQLite storage, no auth, typed code, minimal dependencies, no ORM, and a simple test harness.
+Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress over time, with PostgreSQL storage, no auth, typed code, minimal dependencies, no ORM, and a simple test harness.
 
 ## Locked Product Decisions
 
 1. Main table rows are **licks** (aggregated from sessions), not sessions.
-2. CSV import ignores derived fields (`Best`, `%`, `First`, `Last`) and recomputes them from sessions.
-3. Disable add-session only when `best >= goal`; if today already exists, saving updates today's session instead.
-4. "Today" uses the **device local timezone**.
-5. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
-6. Main table sort defaults to **ascending** for all columns.
-7. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-8. Use 3 top-level tabs: `Beats` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
-9. The shared top navigation includes an in-page metronome popup on all pages.
+2. Disable add-session only when `best >= goal`; if today already exists, saving updates today's session instead.
+3. "Today" uses the **device local timezone**.
+4. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
+5. Main table sort defaults to **ascending** for all columns.
+6. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
+7. Use 3 top-level tabs: `Beats` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
+8. The shared top navigation includes an in-page metronome popup on all pages.
 
 ## Tech Stack
 
 - Runtime/server: Bun (`Bun.serve`)
 - Backend language: TypeScript
-- DB: SQLite via `bun:sqlite` with raw SQL
+- DB: PostgreSQL via `postgres` client library with raw SQL
 - Frontend: Lit + native HTML controls + custom CSS
-- Tests: Bun test runner
-- CSV importer: Python CLI script
-- Containerization: Docker with a production-oriented `Dockerfile`
+- Tests: Bun test runner against a PostgreSQL test database
+- Migration: Python SQLite to PostgreSQL migration script
+- Containerization: Docker with a production-oriented `Dockerfile` and a local `compose.yaml`
 
 ## Dockerfile Requirements
 
@@ -38,32 +37,29 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - Define runtime env defaults:
   - `NODE_ENV=production`
   - `PORT=3000`
-  - `DB_PATH=/data/beats.sqlite`
-- Persist SQLite data in a mounted directory (`/data`) so container restarts do not lose data.
+  - `DATABASE_URL=""`
 - Start command should run the Bun server entrypoint in production mode.
-- Include a `.dockerignore` file to exclude unnecessary files (`.git`, local DB files, `node_modules`, temp/build artifacts).
-- Document canonical run command:
-  - `docker run -p 3000:3000 -v $(pwd)/data:/data <image>`
+- Include a `.dockerignore` file to exclude unnecessary files (`.git`, `node_modules`, temp/build artifacts).
 
 ## Data Model
 
 ### Tables
 
 - `artists`
-  - `id INTEGER PRIMARY KEY`
+  - `id SERIAL PRIMARY KEY`
   - `name TEXT NOT NULL UNIQUE`
 
 - `licks`
-  - `id INTEGER PRIMARY KEY`
-  - `artist_id INTEGER NOT NULL REFERENCES artists(id)`
+  - `id SERIAL PRIMARY KEY`
+  - `artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE`
   - `name TEXT NOT NULL`
   - `url TEXT NULL` (optional external reference URL)
   - `goal_bpm INTEGER NOT NULL CHECK(goal_bpm > 0)`
   - `UNIQUE(artist_id, name)`
 
 - `sessions`
-  - `id INTEGER PRIMARY KEY`
-  - `lick_id INTEGER NOT NULL REFERENCES licks(id)`
+  - `id SERIAL PRIMARY KEY`
+  - `lick_id INTEGER NOT NULL REFERENCES licks(id) ON DELETE CASCADE`
   - `date TEXT NOT NULL` (`YYYY-MM-DD`, device-local calendar date)
   - `bpm INTEGER NOT NULL CHECK(bpm > 0)`
   - `UNIQUE(lick_id, date)`
@@ -73,26 +69,20 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - Artist : Lick = 1:N
 - Lick : Session = 1:N
 
-## CSV Import
+---
 
-Provide `scripts/import_csv.py`:
+## Data Migration (SQLite to Postgres)
+
+Provide `scripts/migrate_to_postgres.py`:
 
 - CLI:
-  - `python scripts/import_csv.py --db data/beats.sqlite --csv input.csv`
-  - Optional: `--default-year YYYY` for `MM/DD` date inputs.
-- Supported session column styles:
-  - `Date N` / `BPM N`
-  - `D1` / `B1` (and higher numbered pairs)
-- Date input formats:
-  - `YYYY-MM-DD`
-  - `MM/DD`
-  - `MM/DD/YYYY`
-  - `MM/DD/YY`
+  - `python scripts/migrate_to_postgres.py --sqlite-db data/beats.sqlite --postgres-url postgres://user:pass@host:port/db`
 - Rules:
-  - Use `Artist`, `Lick`, `Goal`, and date/BPM pairs.
-  - Ignore derived fields: `Best`, `%`, `First`, `Last`.
-  - Duplicate `(lick, date)` rows are **upserted** (replace BPM).
-  - Skip malformed pairs with warnings; continue import.
+  - Reads existing database rows from `artists`, `licks`, and `sessions` in SQLite.
+  - Inserts them into Postgres, resolving conflicts and preserving original primary and foreign keys.
+  - Resets PostgreSQL auto-incrementing serial sequences (`artists_id_seq`, `licks_id_seq`, `sessions_id_seq`) to ensure future inserts work without collision.
+
+---
 
 ## API Interfaces
 
@@ -308,7 +298,7 @@ Each lick row has:
     - `First+Completion` is for sessions that are both first and completion.
     - Stack order: `First` (bottom), `Progression`, `Completion`, `First+Completion` (top).
   - `Deltas`: stacked daily bars with `First` at the bottom, then absolute BPM-change bins (`+5`, `+10`, ...)
-    - Legend shows one trailing unit label (`BPM`) instead of repeating units per bin
+    - Legend shows one trailing unit label (`BPM`) instead of repeating units per term
     - Stack segment heights are weighted by total BPM change (not raw count):
       - `First` = `first_sessions * 5`
       - each delta bin = `delta_bin * session_count`
@@ -386,33 +376,29 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 7. Progress chip filtering works for `New`, `In progress`, and `Done`, with click-to-clear back to `all`.
 8. URL state persists and restores artist/sort/dir/progress.
 9. Session modal defaults to date descending and supports sort toggles.
-10. CSV importer:
-    - ignores derived fields
-    - supports `Date N/BPM N` and `Dn/Bn`
-    - accepts configured date formats
-    - upserts duplicate lick/date
-    - logs malformed pairs
+10. Data migration:
+    - migrates artists, licks, and sessions correctly maintaining IDs.
+    - resets serial sequence values.
 11. Device-local date controls "today" behavior.
 12. Artist toolbar shows edit and add artist controls beside the fixed-width artist dropdown, disabling edit when `All` is selected.
 13. Add-lick `+` appears beside the metrics controls, is disabled until an artist is selected, and binds to the current artist.
 14. Optional lick URL is stored and lick name opens URL in a new tab when present.
 15. Goal-hit highlighting appears on `Best` and `%` with desktop text-only style and mobile pill style.
-16. Docker image builds and app starts on port `3000`.
-17. SQLite file persists across restarts when `/data` is mounted.
-18. Trends page renders current/longest streaks and a contribution-style grid with month/day axes using `/api/stats`; current streak preserves the run through yesterday when there is no session today.
-19. Trends and Stats pages render only their owned graph sections from shared stats APIs.
-20. Stats page uses a 2-per-row chart layout on wide screens.
-21. Artist edit flow enforces unique artist names.
-22. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
-23. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
-24. Metronome popup is available on Beats/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
-25. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo exceeds best, and stops playback when the dialog closes.
-26. Beats page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
+16. Docker Compose environment starts the Postgres container and web container successfully.
+17. Trends page renders current/longest streaks and a contribution-style grid with month/day axes; current streak preserves the run through yesterday when there is no session today.
+18. Trends and Stats pages render only their owned graph sections from shared stats APIs.
+19. Stats page uses a 2-per-row chart layout on wide screens.
+20. Artist edit flow enforces unique artist names.
+21. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
+22. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
+23. Metronome popup is available on Beats/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
+24. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo exceeds best, and stops playback when the dialog closes.
+25. Beats page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
 
 ## Implementation Milestones
 
 1. Project bootstrap (Bun server + Lit app skeleton + DB init).
-2. SQL schema + query layer (no ORM).
+2. PostgreSQL schema + query layer (no ORM).
 3. API routes + validation + aggregate queries.
 4. Main table UI (fetch, filter, sort).
 5. Session modal and add-session modal.
@@ -422,18 +408,11 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 9. URL-state persistence in main view.
 10. Toolbar add flows (`+` add artist / `+` add lick) and dialogs.
 11. Optional lick URL data flow (schema, API, lick edit form, link rendering).
-12. CSV importer script enhancements.
-13. Dockerfile + `.dockerignore` + container run docs.
+12. Data migration python script.
+13. Dockerfile + compose.yaml + `.dockerignore` + container run docs.
 14. Test suite and edge-case hardening.
 15. Split analytics UI into `Trends` (`/trends.html`) and `Stats` (`/stats.html`) with shared tab navigation.
 16. Dead/duplicate frontend code cleanup (deduped submit/icon/range handlers, consolidated stepper/button helpers and progress predicates, unified repeated stats chart scaffolding, and removed unused stats CSS blocks).
 17. Shared metronome popup in top navigation with Web Audio playback, beat visualization, and keyboard controls.
 18. Inline add-session metronome with practice tempo controls and save-only new-best validation.
 19. Compact tracker navigation and grouped toolbar layout with metronome active-state highlighting.
-
-## Reference Docs
-
-- Bun SQLite: https://bun.sh/docs/runtime/sqlite
-- Bun HTTP server: https://bun.sh/docs/runtime/http/server
-- Bun tests: https://bun.sh/docs/test/writing-tests
-- Lit docs: https://lit.dev/docs/

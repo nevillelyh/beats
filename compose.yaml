@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: beats-db
+    environment:
+      POSTGRES_USER: beats
+      POSTGRES_PASSWORD: beats
+      POSTGRES_DB: beats
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beats"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: beats-web
+    command: sh -c "bun install && bun run --watch src/server.ts"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://beats:beats@db:5432/beats
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

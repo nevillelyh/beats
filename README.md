@@ -9,30 +9,59 @@ Beats is a tracker for music practice sessions with three pages and a shared met
 
 ## Stack
 
-- Bun (TypeScript server + SQLite)
+- Bun (TypeScript server + PostgreSQL)
 - Lit (via CDN) + custom CSS (frontend)
-- Python CSV importer
+- Python SQLite to Postgres migration script
 
 ## Local Run
 
-1. Install Bun.
-2. Start server:
+### 1. Start PostgreSQL Database
+Start the database container using Docker Compose:
 
 ```bash
-bun run src/server.ts
+docker compose up -d db
 ```
 
-3. Open `http://localhost:3000`.
+This starts a Postgres instance at `localhost:5432` with username, password, and database all set to `beats`.
 
-Default DB path: `data/beats.sqlite`.
-
-## CSV Import
+### 2. Start Application Server
+Set the `DATABASE_URL` environment variable and start the server:
 
 ```bash
-python3 scripts/import_csv.py --db data/beats.sqlite --csv path/to/input.csv
+DATABASE_URL=postgres://beats:beats@localhost:5432/beats bun run src/server.ts
 ```
 
-## Docker
+### 3. Open Web UI
+Open `http://localhost:3000` in your browser.
+
+---
+
+## Docker Compose (All-in-One Dev)
+
+To start both the database and the auto-reloading web application server in a single command:
+
+```bash
+docker compose up
+```
+
+---
+
+## Data Migration (SQLite to Postgres)
+
+If you have an existing SQLite database (e.g. `beats.sqlite`), you can migrate it to the new Postgres database:
+
+1. Install `psycopg2-binary`:
+   ```bash
+   pip install psycopg2-binary
+   ```
+2. Run the migration script:
+   ```bash
+   DATABASE_URL=postgres://beats:beats@localhost:5432/beats DB_PATH=beats.sqlite python scripts/migrate_to_postgres.py
+   ```
+
+---
+
+## Docker Production
 
 Build image:
 
@@ -40,13 +69,8 @@ Build image:
 docker build -t beats .
 ```
 
-Run with persistent SQLite data:
+Run container:
 
 ```bash
-docker run -p 3000:3000 -v $(pwd)/data:/data beats
+docker run -p 3000:3000 -e DATABASE_URL=postgres://user:pass@host:port/db beats
 ```
-
-Container defaults:
-
-- `PORT=3000`
-- `DB_PATH=/data/beats.sqlite`
