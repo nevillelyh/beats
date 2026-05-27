@@ -11,7 +11,6 @@ Beats is a tracker for music practice sessions with three pages and a shared met
 
 - Bun (TypeScript server + PostgreSQL)
 - Lit (via CDN) + custom CSS (frontend)
-- Python SQLite to Postgres migration script
 
 ## Local Run
 
@@ -43,21 +42,6 @@ To start both the database and the auto-reloading web application server in a si
 ```bash
 docker compose up
 ```
-
----
-
-## Data Migration (SQLite to Postgres)
-
-If you have an existing SQLite database (e.g. `beats.sqlite`), you can migrate it to the new Postgres database:
-
-1. Install `psycopg2-binary`:
-   ```bash
-   pip install psycopg2-binary
-   ```
-2. Run the migration script:
-   ```bash
-   DATABASE_URL=postgres://beats:beats@localhost:5432/beats DB_PATH=beats.sqlite python scripts/migrate_to_postgres.py
-   ```
 
 ---
 

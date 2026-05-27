@@ -8,7 +8,6 @@ ENV DATABASE_URL=""
 
 COPY package.json tsconfig.json ./
 COPY src ./src
-COPY scripts ./scripts
 COPY PLAN.md ./PLAN.md
 
 EXPOSE 3000

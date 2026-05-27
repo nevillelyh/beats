@@ -24,7 +24,6 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - DB: PostgreSQL via `postgres` client library with raw SQL
 - Frontend: Lit + native HTML controls + custom CSS
 - Tests: Bun test runner against a PostgreSQL test database
-- Migration: Python SQLite to PostgreSQL migration script
 - Containerization: Docker with a production-oriented `Dockerfile` and a local `compose.yaml`
 
 ## Dockerfile Requirements
@@ -68,19 +67,6 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 
 - Artist : Lick = 1:N
 - Lick : Session = 1:N
-
----
-
-## Data Migration (SQLite to Postgres)
-
-Provide `scripts/migrate_to_postgres.py`:
-
-- CLI:
-  - `python scripts/migrate_to_postgres.py --sqlite-db data/beats.sqlite --postgres-url postgres://user:pass@host:port/db`
-- Rules:
-  - Reads existing database rows from `artists`, `licks`, and `sessions` in SQLite.
-  - Inserts them into Postgres, resolving conflicts and preserving original primary and foreign keys.
-  - Resets PostgreSQL auto-incrementing serial sequences (`artists_id_seq`, `licks_id_seq`, `sessions_id_seq`) to ensure future inserts work without collision.
 
 ---
 
