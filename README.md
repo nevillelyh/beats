@@ -54,3 +54,7 @@ Run container:
 ```bash
 docker run -p 3000:3000 -e DATABASE_URL=postgres://user:pass@host:port/db beats
 ```
+
+## License
+
+[MIT](LICENSE)

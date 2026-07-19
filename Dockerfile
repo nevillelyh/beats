@@ -6,7 +6,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_URL=""
 
-COPY package.json tsconfig.json ./
+COPY package.json bun.lock tsconfig.json ./
+RUN bun install --frozen-lockfile --production
 COPY src ./src
 COPY PLAN.md ./PLAN.md
 
