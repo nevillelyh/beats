@@ -1,5 +1,8 @@
 # Beats
 
+> **Disclaimer:** This repository, including its code and documentation, was
+> generated entirely by AI.
+
 Beats is a tracker for music practice sessions with three pages and a shared metronome popup:
 
 - `Beats` (`/`)
