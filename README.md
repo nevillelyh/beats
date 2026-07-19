@@ -9,28 +9,24 @@ Beats is a tracker for music practice sessions with three pages and a shared met
 
 ## Stack
 
-- Bun (TypeScript server + PostgreSQL)
+- Bun (TypeScript server + SQLite or PostgreSQL)
 - Lit (via CDN) + custom CSS (frontend)
 
 ## Local Run
 
-### 1. Start PostgreSQL Database
-Start the database container using Docker Compose:
+SQLite is the default for local development and tests. Start the server with:
+
+```bash
+bun run dev
+```
+
+This creates `beats.sqlite` in the project directory. To use PostgreSQL instead, start the database and set its URL:
 
 ```bash
 docker compose up -d db
-```
-
-This starts a Postgres instance at `localhost:5432` with username, password, and database all set to `beats`.
-
-### 2. Start Application Server
-Set the `DATABASE_URL` environment variable and start the server:
-
-```bash
 DATABASE_URL=postgres://beats:beats@localhost:5432/beats bun run src/server.ts
 ```
 
-### 3. Open Web UI
 Open `http://localhost:3000` in your browser.
 
 ---

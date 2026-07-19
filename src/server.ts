@@ -21,12 +21,7 @@ import {
 } from "./db";
 
 const PORT = Number(process.env.PORT || 3000);
-const DATABASE_URL = process.env.DATABASE_URL;
-
-if (!DATABASE_URL) {
-  console.error("DATABASE_URL environment variable is required");
-  process.exit(1);
-}
+const DATABASE_URL = process.env.DATABASE_URL || "beats.sqlite";
 
 const db = openDb(DATABASE_URL);
 try {

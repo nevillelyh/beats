@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test, afterAll } from "bun:test";
-import postgres from "postgres";
 import {
   addSession,
   createArtist,
@@ -18,17 +17,17 @@ import {
   openDb,
   updateArtist,
   updateLick,
+  type Sql,
 } from "../src/db";
 
-let db: postgres.Sql;
+let db: Sql;
 
 beforeEach(async () => {
-  const url = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "postgres://beats:beats@localhost:5432/beats";
-  db = openDb(url);
-  // Clean DB before each test so we have a completely clean slate
-  await db`DROP TABLE IF EXISTS sessions CASCADE`;
-  await db`DROP TABLE IF EXISTS licks CASCADE`;
-  await db`DROP TABLE IF EXISTS artists CASCADE`;
+  if (db) await db.end();
+  db = openDb(process.env.TEST_DATABASE_URL || ":memory:");
+  if (db.dialect === "postgres") {
+    await db.exec("DROP TABLE IF EXISTS sessions, licks, artists CASCADE");
+  }
   await initSchema(db);
 });
 
