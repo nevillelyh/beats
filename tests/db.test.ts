@@ -74,6 +74,22 @@ describe("db behavior", () => {
     ]);
   });
 
+  test("licks default to artist name then lick name ascending", async () => {
+    await createLick(db, "Pat", "Zulu", 120);
+    await createLick(db, "Alex", "Beta", 120);
+    await createLick(db, "Pat", "Alpha", 120);
+    await createLick(db, "Alex", "Alpha", 120);
+
+    const rows = await getLicks(db, null, "", "", "2026-02-11");
+
+    expect(rows.map((row) => [row.artist_name, row.lick_name])).toEqual([
+      ["Alex", "Alpha"],
+      ["Alex", "Beta"],
+      ["Pat", "Alpha"],
+      ["Pat", "Zulu"],
+    ]);
+  });
+
   test("update lick enforces unique artist+lick name", async () => {
     const a = await createLick(db, "Pat", "Line A", 120);
     await createLick(db, "Pat", "Line B", 120);
