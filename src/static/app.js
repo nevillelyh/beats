@@ -288,6 +288,11 @@ class BeatsApp extends LitElement {
     this.lickFilter = event.target.value;
   }
 
+  clearLickFilter() {
+    this.lickFilter = "";
+    this.el("lickSearch")?.focus();
+  }
+
   isDoneRow(row) {
     return row.pct_of_goal !== null && row.pct_of_goal >= 100;
   }
@@ -866,13 +871,25 @@ class BeatsApp extends LitElement {
               </div>
             </div>
             <div class="toolbar-row filter-row">
-              <input
-                type="text"
-                id="lickSearch"
-                placeholder="Filter licks..."
-                .value=${this.lickFilter}
-                @input=${this.onLickFilter}
-              />
+              <div class="lick-search-wrap">
+                <input
+                  type="text"
+                  id="lickSearch"
+                  placeholder="Filter licks..."
+                  .value=${this.lickFilter}
+                  @input=${this.onLickFilter}
+                />
+                ${this.lickFilter
+                  ? html`<button
+                      type="button"
+                      class="lick-search-clear"
+                      @click=${this.clearLickFilter}
+                      aria-label="Clear filter"
+                    >
+                      <span aria-hidden="true">&times;</span>
+                    </button>`
+                  : ""}
+              </div>
             </div>
           </div>
           ${this.compact
@@ -1105,6 +1122,7 @@ class BeatsApp extends LitElement {
                         id=${goalId}
                         class="bpm-number-input"
                         type="number"
+                        inputmode="numeric"
                         min="1"
                         step="1"
                         aria-label=${`Goal BPM ${index + 1}`}
@@ -1182,6 +1200,7 @@ class BeatsApp extends LitElement {
                 id="editGoalBpm"
                 class="bpm-number-input"
                 type="number"
+                inputmode="numeric"
                 min=${this.editLick?.best_bpm === null ? 1 : (this.editLick?.best_bpm || 1)}
                 step="1"
                 @input=${this.updateEditGoalValue}
