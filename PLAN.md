@@ -12,10 +12,10 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 2. Disable add-session only when `best >= goal`; if today already exists, saving updates today's session instead.
 3. "Today" uses the **device local timezone**.
 4. Tech stack: **Bun + Lit + custom CSS** (no UI framework dependency).
-5. Main table sort defaults to **ascending** for all columns.
-6. Main view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
-7. Use 3 top-level tabs: `Beats` (`/`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
-8. The shared top navigation includes an in-page metronome popup on all pages.
+5. Table sorting defaults to **artist ascending, then lick ascending**; selecting a new column starts ascending.
+6. Licks view state is URL-persistent (`artist`, `sort`, `dir`, `progress`).
+7. Use 4 top-level pages: `Today` (`/`), `Licks` (`/licks.html`), `Trends` (`/trends.html`), and `Stats` (`/stats.html`).
+8. The shared header keeps the `Beats` title, uses icon tabs for the four pages, and places the in-page metronome control separately at the right edge.
 
 ## Tech Stack
 
@@ -81,6 +81,14 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - `GET /api/licks?artist_id=&sort_by=&sort_dir=`
   - Returns lick rows with aggregates:
     - `lick_url`, `best_bpm`, `pct_of_goal`, `first_date`, `last_date`, `session_count`, `can_add_today`
+- `GET /api/today`
+  - Returns up to `40` unique unfinished licks, sorted by artist then lick after selection.
+  - Selection takes up to `10` in-progress licks from each category, discarding duplicates before moving to the next candidate:
+    1. Most recent sessions.
+    2. Least recent sessions.
+    3. Lowest best percentage.
+    4. Random licks with exactly one session.
+  - If fewer than `40` rows were selected, fill the remainder with random unused in-progress licks, then random unstarted licks.
 - `POST /api/licks`
   - Body: `{ artistName, lickName, goalBpm, url? }`
 - `PATCH /api/licks/:lickId`
@@ -118,14 +126,16 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 
 ### Header and toolbar actions
 
-- Top navigation includes `Beats`, `Trends`, `Stats`, and `Metronome`; it opens a popup in the current page.
-- Do not show a standalone `Beats` title before the top navigation.
-- Highlight the `Metronome` button while its popup is open.
-- Main toolbar first row has two grouped control blocks that can wrap as whole groups on mobile:
-  - Artist block: `Artist` label, fixed-width artist dropdown, always-visible edit artist button, and `+` add artist button.
-  - Metrics block: `New`, `In progress`, `Done`, `Average %`, and `+` add lick button.
-- Disable edit artist and add lick when the artist dropdown is `All`.
-- Lick text filter is on its own row below the toolbar groups and fills the available row width.
+- The shared header shows the `Beats` title followed by icon tabs for `Today`, `Licks`, `Trends`, and `Stats`.
+- Icons use a checkbox for Today, pick for Licks, calendar for Trends, and chart for Stats.
+- The metronome icon is right-aligned and separate from the page-tab group; it opens a popup in the current page.
+- Icon-only controls have accessible labels and hover titles, and the current page tab is highlighted.
+- The following toolbar controls appear on the Licks page only:
+  - Main toolbar first row has two grouped control blocks that can wrap as whole groups on mobile:
+    - Artist block: `Artist` label, fixed-width artist dropdown, always-visible edit artist button, and `+` add artist button.
+    - Metrics block: `New`, `In progress`, `Done`, `Average %`, and `+` add lick button.
+  - Disable edit artist and add lick when the artist dropdown is `All`.
+  - Lick text filter is on its own row below the toolbar groups and fills the available row width.
 
 ### Metronome popup
 
@@ -151,7 +161,20 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - Sound uses Web Audio blips, with a higher-pitched and louder downbeat.
 - Audio starts from direct pointer/touch gestures and explicitly unlocks/resumes Web Audio for mobile Safari compatibility.
 
-### Main table
+### Today page
+
+- `Today` is the default page at `/`.
+- It uses the same responsive table, sortable columns, row actions, and dialogs as the Licks page.
+- It displays the unique recommendations returned by `GET /api/today`, with default artist-then-lick ordering after the category selection is complete.
+- It does not show:
+  - Artist filter or artist add/edit controls.
+  - New/In progress/Done filters or Average % metric.
+  - Add lick button.
+  - Lick text filter.
+
+### Licks table
+
+`Licks` is the second page at `/licks.html` and contains the complete lick list.
 
 Columns:
 
@@ -271,11 +294,11 @@ Each lick row has:
 
 ### Trends and Stats pages
 
-- Global tab navigation is shown without a separate page title:
-  - `Beats` (`/`)
+- Global navigation uses the shared `Beats` title and icon controls:
+  - `Today` (`/`)
+  - `Licks` (`/licks.html`)
   - `Trends` (`/trends.html`)
   - `Stats` (`/stats.html`)
-- Main page title is `Beats`.
 - `Trends` page (`Beats - Trends`) renders:
   - A top streak summary row above the graphs showing current streak and longest streak with compact icons.
     - If there is no session today, current streak shows the run through yesterday instead of resetting to `0`.
@@ -377,9 +400,12 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 20. Artist edit flow enforces unique artist names.
 21. Lick edit flow supports name/URL/goal updates with unique lick-name and min-goal validation.
 22. Add-lick flow supports batch creation with repeatable rows and atomic save behavior.
-23. Metronome popup is available on Beats/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, highlights its top-nav button while open, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
+23. Metronome popup is available on Today/Licks/Trends/Stats, supports tempo/time/rhythm controls, highlights beats, plays downbeat-accented blips, supports keyboard shortcuts, and stops when closed.
 24. Add-session flow embeds the metronome, starts at current best, allows practice tempo below best, disables save until tempo exceeds best, and stops playback when the dialog closes.
-25. Beats page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
+25. Licks page toolbar groups artist controls and metrics controls into one wrapping row, with the lick text filter on its own full-width row above the table.
+26. Today selects up to 10 unique in-progress licks per requested category, fills shortages with unused in-progress then unstarted licks, excludes completed licks, and caps the list at 40.
+27. Today sorts the final populated list by artist then lick and omits all Licks-page filters and artist/lick creation controls.
+28. Shared navigation keeps the Beats title, uses accessible page icons in Today/Licks/Trends/Stats order, and right-aligns the separate metronome icon.
 
 ## Implementation Milestones
 
@@ -402,3 +428,4 @@ Edit button is always visible next to the artist dropdown, disabled when `All` i
 17. Shared metronome popup in top navigation with Web Audio playback, beat visualization, and keyboard controls.
 18. Inline add-session metronome with practice tempo controls and save-only new-best validation.
 19. Compact tracker navigation and grouped toolbar layout with metronome active-state highlighting.
+20. Default Today recommendation page, renamed Licks page, and shared icon navigation with a separately aligned metronome control.
