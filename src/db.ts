@@ -83,6 +83,12 @@ export type LickAggregate = {
   can_add_today: boolean;
 };
 
+export type TodayLickCategory = {
+  key: "most-recent" | "least-recent" | "lowest-best" | "one-session" | "more";
+  title: string;
+  licks: LickAggregate[];
+};
+
 export type Session = {
   id: number;
   lick_id: number;
@@ -388,6 +394,85 @@ export async function getLicks(
     session_count: Number(r.session_count),
     can_add_today: Boolean(r.can_add_today),
   })) as LickAggregate[];
+}
+
+export function selectTodayLicks(
+  rows: LickAggregate[],
+  random: () => number = Math.random,
+): TodayLickCategory[] {
+  const inProgress = rows.filter((row) =>
+    row.session_count > 0 && row.pct_of_goal !== null && row.pct_of_goal < 100
+  );
+  const unstarted = rows.filter((row) => row.session_count === 0);
+  const selected = new Set<number>();
+  const byName = (a: LickAggregate, b: LickAggregate) =>
+    a.artist_name.localeCompare(b.artist_name) || a.lick_name.localeCompare(b.lick_name) || a.id - b.id;
+  const shuffled = (items: LickAggregate[]) => {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+  const take = (items: LickAggregate[], limit = 10) => {
+    const picked: LickAggregate[] = [];
+    for (const row of items) {
+      if (!selected.has(row.id)) {
+        selected.add(row.id);
+        picked.push(row);
+      }
+      if (picked.length === limit) break;
+    }
+    return picked;
+  };
+
+  const categories: TodayLickCategory[] = [
+    {
+      key: "most-recent",
+      title: "Licks with most recent sessions",
+      licks: take([...inProgress].sort((a, b) =>
+        String(b.last_date).localeCompare(String(a.last_date)) || byName(a, b)
+      )),
+    },
+    {
+      key: "least-recent",
+      title: "Licks with least recent sessions",
+      licks: take([...inProgress].sort((a, b) =>
+        String(a.last_date).localeCompare(String(b.last_date)) || byName(a, b)
+      )),
+    },
+    {
+      key: "lowest-best",
+      title: "Licks with lowest best %",
+      licks: take([...inProgress].sort((a, b) =>
+        (a.pct_of_goal ?? 0) - (b.pct_of_goal ?? 0) || byName(a, b)
+      )),
+    },
+    {
+      key: "one-session",
+      title: "Random licks with 1 session only",
+      licks: take(shuffled(inProgress.filter((row) => row.session_count === 1))),
+    },
+  ];
+
+  const target = Math.min(40, inProgress.length + unstarted.length);
+  const remaining = target - selected.size;
+  if (remaining > 0) {
+    const moreInProgress = take(shuffled(inProgress), remaining);
+    const moreUnstarted = take(shuffled(unstarted), remaining - moreInProgress.length);
+    categories.push({ key: "more", title: "More licks", licks: [...moreInProgress, ...moreUnstarted] });
+  }
+
+  return categories.filter((category) => category.licks.length > 0);
+}
+
+export async function getTodayLicks(db: Sql, localDate: string): Promise<LickAggregate[]> {
+  return selectTodayLicks(await getLicks(db, null, "artist", "asc", localDate))
+    .flatMap((category) => category.licks)
+    .sort((a, b) =>
+      a.artist_name.localeCompare(b.artist_name) || a.lick_name.localeCompare(b.lick_name) || a.id - b.id
+    );
 }
 
 export async function getLickMeta(

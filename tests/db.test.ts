@@ -11,6 +11,8 @@ import {
   getStatsBars,
   getStats,
   getLicks,
+  getTodayLicks,
+  selectTodayLicks,
   getSessionBpmRange,
   hasSessionForDate,
   initSchema,
@@ -19,6 +21,24 @@ import {
   updateLick,
   type Sql,
 } from "../src/db";
+
+function aggregate(id: number, overrides: Partial<Parameters<typeof selectTodayLicks>[0][number]> = {}) {
+  return {
+    id,
+    artist_id: 1,
+    artist_name: "Artist",
+    lick_name: `Lick ${id}`,
+    lick_url: null,
+    goal_bpm: 100,
+    best_bpm: 50,
+    pct_of_goal: 50,
+    first_date: "2026-01-01",
+    last_date: `2026-02-${String(id).padStart(2, "0")}`,
+    session_count: 2,
+    can_add_today: true,
+    ...overrides,
+  };
+}
 
 let db: Sql;
 
@@ -38,6 +58,66 @@ afterAll(async () => {
 });
 
 describe("db behavior", () => {
+  test("today selects ten unique in-progress licks for each category", () => {
+    const rows = Array.from({ length: 50 }, (_, index) => {
+      const id = index + 1;
+      return aggregate(id, {
+        pct_of_goal: id,
+        session_count: id >= 21 && id <= 40 ? 1 : 2,
+      });
+    });
+
+    const categories = selectTodayLicks(rows, () => 0);
+    const selected = categories.flatMap((category) => category.licks);
+
+    expect(categories.map((category) => [category.key, category.licks.length])).toEqual([
+      ["most-recent", 10],
+      ["least-recent", 10],
+      ["lowest-best", 10],
+      ["one-session", 10],
+    ]);
+    expect(categories[0].licks.map((row) => row.id)).toEqual([50, 49, 48, 47, 46, 45, 44, 43, 42, 41]);
+    expect(categories[1].licks.map((row) => row.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(categories[2].licks.map((row) => row.id)).toEqual([11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    expect(new Set(selected.map((row) => row.id)).size).toBe(40);
+  });
+
+  test("today fills to forty with random in-progress licks then unstarted licks", () => {
+    const inProgress = Array.from({ length: 35 }, (_, index) => aggregate(index + 1));
+    const unstarted = Array.from({ length: 20 }, (_, index) => aggregate(index + 101, {
+      best_bpm: null,
+      pct_of_goal: null,
+      first_date: null,
+      last_date: null,
+      session_count: 0,
+    }));
+    const done = aggregate(999, { best_bpm: 100, pct_of_goal: 100 });
+
+    const categories = selectTodayLicks([...inProgress, ...unstarted, done], () => 0);
+    const selected = categories.flatMap((category) => category.licks);
+    const more = categories.find((category) => category.key === "more");
+
+    expect(selected).toHaveLength(40);
+    expect(new Set(selected.map((row) => row.id)).size).toBe(40);
+    expect(selected.some((row) => row.id === done.id)).toBe(false);
+    expect(more?.licks.filter((row) => row.session_count > 0)).toHaveLength(5);
+    expect(more?.licks.filter((row) => row.session_count === 0)).toHaveLength(5);
+  });
+
+  test("today returns the populated list sorted by artist then lick", async () => {
+    await createLick(db, "Pat", "Zulu", 100);
+    await createLick(db, "Alex", "Beta", 100);
+    await createLick(db, "Pat", "Alpha", 100);
+
+    const rows = await getTodayLicks(db, "2026-02-11");
+
+    expect(rows.map((row) => [row.artist_name, row.lick_name])).toEqual([
+      ["Alex", "Beta"],
+      ["Pat", "Alpha"],
+      ["Pat", "Zulu"],
+    ]);
+  });
+
   test("update artist updates artist name", async () => {
     const artistId = await createArtist(db, "Pat");
     await updateArtist(db, artistId, "Pat Metheny");

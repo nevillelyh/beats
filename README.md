@@ -3,9 +3,10 @@
 > **Disclaimer:** This repository, including its code and documentation, was
 > generated entirely by AI.
 
-Beats is a tracker for music practice sessions with three pages and a shared metronome popup:
+Beats is a tracker for music practice sessions with four pages and a shared metronome popup:
 
-- `Beats` (`/`)
+- `Today` (`/`)
+- `Licks` (`/licks.html`)
 - `Trends` (`/trends.html`)
 - `Stats` (`/stats.html`)
 - `Metronome` popup available from each page

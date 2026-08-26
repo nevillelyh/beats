@@ -9,6 +9,7 @@ import {
   getStatsHistograms,
   getStatsBars,
   getStats,
+  getTodayLicks,
   getLickMeta,
   getLicks,
   getSessions,
@@ -120,6 +121,11 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     } catch (err) {
       return badRequest((err as Error).message);
     }
+  }
+
+  if (url.pathname === "/api/today" && req.method === "GET") {
+    const localDate = normalizeLocalDate(req.headers.get("x-local-date"));
+    return json({ data: await getTodayLicks(db, localDate) });
   }
 
   if (url.pathname === "/api/stats" && req.method === "GET") {

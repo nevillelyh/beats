@@ -1,5 +1,5 @@
 import { LitElement, html } from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
-import { openMetronome } from "/metronome.js";
+import "/page-nav.js";
 
 const COMPACT_BREAKPOINT = 720;
 const VALID_SORT_OPTIONS = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
@@ -40,6 +40,7 @@ class BeatsApp extends LitElement {
     super();
     this.artists = [];
     this.licks = [];
+    this.isToday = window.location.pathname === "/" || window.location.pathname === "/index.html";
     this.filterArtistId = "";
     this.sortBy = "artist";
     this.sortDir = "asc";
@@ -218,6 +219,11 @@ class BeatsApp extends LitElement {
     this.loading = true;
     this.error = "";
     try {
+      if (this.isToday) {
+        const response = await this.api("/api/today");
+        this.licks = response.data || [];
+        return;
+      }
       const [artistsResp, licksResp] = await Promise.all([
         this.api("/api/artists"),
         this.api(this.licksUrl()),
@@ -245,6 +251,11 @@ class BeatsApp extends LitElement {
     this.loading = true;
     this.error = "";
     try {
+      if (this.isToday) {
+        const response = await this.api("/api/today");
+        this.licks = response.data || [];
+        return;
+      }
       const resp = await this.api(this.licksUrl());
       this.licks = resp.data || [];
     } catch (err) {
@@ -262,7 +273,11 @@ class BeatsApp extends LitElement {
       this.sortDir = "asc";
     }
     this.syncUrlState();
-    this.reloadLicks();
+    if (this.isToday) {
+      this.requestUpdate();
+    } else {
+      this.reloadLicks();
+    }
   }
 
   sortChip(label, key) {
@@ -732,6 +747,33 @@ class BeatsApp extends LitElement {
     return html`${row.lick_name}`;
   }
 
+  sortRows(rows) {
+    const direction = this.sortDir === "desc" ? -1 : 1;
+    const values = {
+      artist: (row) => row.artist_name,
+      lick: (row) => row.lick_name,
+      goal: (row) => row.goal_bpm,
+      best: (row) => row.best_bpm,
+      pct: (row) => row.pct_of_goal,
+      sessions: (row) => row.session_count,
+      first: (row) => row.first_date,
+      last: (row) => row.last_date,
+    };
+    return [...rows].sort((a, b) => {
+      const left = values[this.sortBy](a);
+      const right = values[this.sortBy](b);
+      if (left === right) {
+        if (this.sortBy === "artist") {
+          return a.lick_name.localeCompare(b.lick_name) || a.id - b.id;
+        }
+        return a.id - b.id;
+      }
+      if (left === null || left === undefined) return direction;
+      if (right === null || right === undefined) return -direction;
+      return (typeof left === "string" ? left.localeCompare(right) : left - right) * direction;
+    });
+  }
+
   header(label, key, className = "") {
     const active = this.sortBy === key;
     const marker = this.sortDir === "asc" ? "▲" : "▼";
@@ -767,7 +809,7 @@ class BeatsApp extends LitElement {
       startedPcts.length > 0
         ? Math.round((startedPcts.reduce((sum, pct) => sum + pct, 0) / startedPcts.length) * 10) / 10
         : null;
-    const visibleLicks = this.licks.filter((row) => {
+    const filteredLicks = this.licks.filter((row) => {
       if (this.progressFilter === "all") {
         return true;
       }
@@ -785,22 +827,14 @@ class BeatsApp extends LitElement {
       const query = this.lickFilter.toLowerCase();
       return row.lick_name.toLowerCase().includes(query) || row.artist_name.toLowerCase().includes(query);
     });
+    const visibleLicks = this.isToday ? this.sortRows(this.licks) : filteredLicks;
 
     return html`
       <div class="container">
-        <div class="header">
-          <div class="nav-row">
-            <div class="page-tabs">
-              <a class="btn btn-small btn-primary" href="/">Beats</a>
-              <a class="btn btn-small" href="/trends.html">Trends</a>
-              <a class="btn btn-small" href="/stats.html">Stats</a>
-              <button type="button" class="btn btn-small" data-metronome-open @click=${openMetronome}>Metronome</button>
-            </div>
-          </div>
-        </div>
+        <page-nav active=${this.isToday ? "today" : "licks"}></page-nav>
 
         <div class="card">
-          <div class="toolbar">
+          ${this.isToday ? "" : html`<div class="toolbar">
             <div class="toolbar-row toolbar-main-row">
               <div class="toolbar-group artist-filter-group">
                 <label for="artistFilter">Artist</label>
@@ -891,7 +925,7 @@ class BeatsApp extends LitElement {
                   : ""}
               </div>
             </div>
-          </div>
+          </div>`}
           ${this.compact
             ? html`
                 <div class="sort-chips">
