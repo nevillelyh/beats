@@ -361,6 +361,16 @@ body {
   gap: 8px;
 }
 
+.table .actions {
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.table th button.today-toggle {
+  padding: 5px 8px;
+  border-radius: 10px;
+}
+
 .btn {
   border: 1px solid #b9c5d4;
   background: #f8fafc;

@@ -29,6 +29,7 @@ class BeatsApp extends LitElement {
     compact: { state: true },
     progressFilter: { state: true },
     lickFilter: { state: true },
+    sessionDateFilter: { state: true },
   };
 
   createRenderRoot() {
@@ -57,6 +58,7 @@ class BeatsApp extends LitElement {
     this.addLickRows = [this._createAddLickRow()];
     this.progressFilter = "all";
     this.lickFilter = "";
+    this.sessionDateFilter = "All";
     this.compact = typeof window !== "undefined" ? window.innerWidth <= COMPACT_BREAKPOINT : false;
     this._onResize = () => {
       const next = window.innerWidth <= COMPACT_BREAKPOINT;
@@ -827,7 +829,27 @@ class BeatsApp extends LitElement {
       const query = this.lickFilter.toLowerCase();
       return row.lick_name.toLowerCase().includes(query) || row.artist_name.toLowerCase().includes(query);
     });
-    const visibleLicks = this.isToday ? this.sortRows(this.licks) : filteredLicks;
+    const today = this.localDate();
+    const visibleLicks = (this.isToday ? this.sortRows(this.licks) : filteredLicks)
+      .filter((row) => this.sessionDateFilter === "All"
+        || (this.sessionDateFilter === "Today" ? row.last_date === today : row.last_date !== today));
+    const todayToggle = html`
+      <button
+        type="button"
+        class="today-toggle ${this.sessionDateFilter !== "All" ? "active" : ""}"
+        aria-label=${`Session date: ${this.sessionDateFilter}`}
+        title=${this.sessionDateFilter}
+        @click=${() => {
+          this.sessionDateFilter = { All: "Today", Today: "Past", Past: "All" }[this.sessionDateFilter];
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+          <path d="M7 3v4m10-4v4M3 11h18"></path>
+          <path d=${this.sessionDateFilter === "Today" ? "m8 16 3 3 5-5" : this.sessionDateFilter === "Past" ? "M8 16h8" : ""}></path>
+        </svg>
+      </button>
+    `;
 
     return html`
       <div class="container">
@@ -946,9 +968,10 @@ class BeatsApp extends LitElement {
             ${this.compact
               ? html`
                   <table class="table">
+                    <thead><tr><th><div class="actions">${todayToggle}</div></th></tr></thead>
                     <tbody>
                       ${visibleLicks.length === 0
-                        ? html`<tr><td class="row-empty">No licks yet.</td></tr>`
+                        ? html`<tr><td class="row-empty">${this.sessionDateFilter !== "All" ? "No matching licks." : "No licks yet."}</td></tr>`
                         : visibleLicks.map(
                             (row) => html`
                               <tr class="compact-main">
@@ -1015,12 +1038,12 @@ class BeatsApp extends LitElement {
                         ${this.header("#", "sessions", "col-bpm")}
                         ${this.header("First", "first")}
                         ${this.header("Last", "last")}
-                        <th>Actions</th>
+                        <th><div class="actions"><span>Actions</span>${todayToggle}</div></th>
                       </tr>
                     </thead>
                     <tbody>
                       ${visibleLicks.length === 0
-                        ? html`<tr><td class="row-empty" colspan="9">No licks yet.</td></tr>`
+                        ? html`<tr><td class="row-empty" colspan="9">${this.sessionDateFilter !== "All" ? "No matching licks." : "No licks yet."}</td></tr>`
                         : visibleLicks.map(
                             (row) => html`
                               <tr>

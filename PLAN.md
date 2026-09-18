@@ -203,6 +203,12 @@ Rules:
     - `Cmd/Ctrl+F` focuses and selects the filter input.
     - `Esc` clears the filter and blurs the input.
 - Sort by any column.
+- A calendar button at the end of the table header, aligned with Add Session, cycles through `All` → `Today` → `Past` → `All`.
+  - Tooltips are `All`, `Today`, and `Past`; icons are calendar, calendar-check, and calendar-minus respectively.
+  - `Today` matches Last equal to today (browser local date); `Past` matches Last not equal to today, including never-practiced licks.
+  - Available on both Today and Licks, including compact layout; defaults to `All` and resets on page reload.
+  - Each state combines with artist, text, and New/In progress/Done filters where available and leaves summary metrics unchanged.
+  - Highlighted means `Today` or `Past` is selected.
 - Always show Artist column (even when an artist filter is active).
 - For no-session licks: show `-` in Best/%/First/Last.
 - If a lick has a URL, clicking the lick name opens it in a new tab.
