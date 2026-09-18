@@ -43,8 +43,10 @@ class BeatsMetronome extends HTMLElement {
     if (oldValue === newValue) {
       return;
     }
+    const isEditingBpm = name === "bpm"
+      && this.querySelector("[data-metronome-bpm-input]") === document.activeElement;
     this.readBpmAttribute();
-    if (this.isConnected) {
+    if (this.isConnected && !isEditingBpm) {
       this.render();
     }
   }
@@ -72,6 +74,14 @@ class BeatsMetronome extends HTMLElement {
     this.querySelector("dialog")?.close();
   }
 
+  focus(options) {
+    const target = this.querySelector("[data-metronome-bpm-input]");
+    target?.focus(options);
+    if (target instanceof HTMLInputElement) {
+      target.select();
+    }
+  }
+
   isInline() {
     return this.hasAttribute("inline");
   }
@@ -87,7 +97,7 @@ class BeatsMetronome extends HTMLElement {
   normalizeBpm(value) {
     const next = Number(value);
     if (!Number.isFinite(next)) {
-      return DEFAULT_BPM;
+      return this.bpm;
     }
     return Math.max(MIN_BPM, Math.min(this.maxBpm, Math.trunc(next)));
   }
@@ -106,8 +116,8 @@ class BeatsMetronome extends HTMLElement {
     }));
   }
 
-  adjustBpm(delta) {
-    this.setBpm(this.bpm + delta);
+  adjustBpm(delta, shouldRender = true) {
+    this.setBpm(this.bpm + delta, shouldRender);
   }
 
   handleKeydown(event) {
@@ -119,7 +129,11 @@ class BeatsMetronome extends HTMLElement {
     if (event.key === "ArrowUp" || event.key === "ArrowDown") {
       event.preventDefault();
       const direction = event.key === "ArrowUp" ? 1 : -1;
-      this.adjustBpm(direction * (event.shiftKey ? 5 : 1));
+      const input = event.target.closest?.("[data-metronome-bpm-input]");
+      this.adjustBpm(direction * (event.shiftKey ? 5 : 1), !input);
+      if (input) {
+        input.value = String(this.bpm);
+      }
     }
   }
 
@@ -313,6 +327,9 @@ class BeatsMetronome extends HTMLElement {
 
   render() {
     const wasOpen = this.querySelector("dialog")?.open;
+    const previousInput = this.querySelector("[data-metronome-bpm-input]");
+    const inputFocused = previousInput === document.activeElement;
+    const draft = previousInput?.value;
     const controls = `
       <div class="metronome-controls">
         <div class="metronome-toggle-strip">
@@ -326,12 +343,18 @@ class BeatsMetronome extends HTMLElement {
         <div class="metronome-number-row" aria-label="Tempo controls">
           ${this.renderStepButton(-5, "Decrease tempo by 5")}
           ${this.renderStepButton(-1, "Decrease tempo by 1")}
-          <div
+          <input
             id="metronomeBpm"
-            class="metronome-bpm-display"
-            role="status"
+            class="bpm-number-input metronome-bpm-display"
+            data-metronome-bpm-input
+            type="number"
+            inputmode="numeric"
+            min="${MIN_BPM}"
+            max="${this.maxBpm}"
+            step="1"
+            value="${this.bpm}"
             aria-label="BPM"
-          >${this.bpm}</div>
+          >
           ${this.renderStepButton(1, "Increase tempo by 1")}
           ${this.renderStepButton(5, "Increase tempo by 5")}
         </div>
@@ -366,7 +389,14 @@ class BeatsMetronome extends HTMLElement {
     if (wasOpen) {
       this.querySelector("dialog")?.showModal();
       setMetronomeButtonOpen(true);
-      requestAnimationFrame(() => this.querySelector("dialog")?.focus());
+      if (!inputFocused) {
+        requestAnimationFrame(() => this.querySelector("dialog")?.focus());
+      }
+    }
+    if (inputFocused) {
+      const input = this.querySelector("[data-metronome-bpm-input]");
+      input.value = draft;
+      input.focus();
     }
   }
 
@@ -387,6 +417,22 @@ class BeatsMetronome extends HTMLElement {
     for (const button of this.querySelectorAll("[data-metronome-adjust]")) {
       button.addEventListener("click", () => this.adjustBpm(Number(button.dataset.metronomeAdjust)));
     }
+    const bpmInput = this.querySelector("[data-metronome-bpm-input]");
+    bpmInput?.addEventListener("input", (event) => {
+      const bpm = event.target.valueAsNumber;
+      this.bpm = this.normalizeBpm(bpm);
+      if (this.running) {
+        this.restartTimer();
+      }
+      this.dispatchEvent(new CustomEvent("bpm-change", {
+        detail: { bpm },
+        bubbles: true,
+      }));
+    });
+    bpmInput?.addEventListener("change", (event) => {
+      this.setBpm(event.target.valueAsNumber, false);
+      event.target.value = String(this.bpm);
+    });
     for (const button of this.querySelectorAll('[data-metronome-option="Time signature"]')) {
       button.addEventListener("click", () => this.setSignature(Number(button.dataset.value)));
     }

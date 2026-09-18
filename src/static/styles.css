@@ -774,6 +774,12 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+input.metronome-bpm-display {
+  box-sizing: border-box;
+  padding: 0;
+  text-align: center;
+}
+
 .metronome-start {
   min-height: 44px;
   width: 52px;

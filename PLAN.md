@@ -143,14 +143,18 @@ Build a mobile-friendly web app (iOS-inspired UI) for tracking lick progress ove
 - Opens as an in-page dialog and stops playback when closed.
 - Default tempo is `120` BPM.
 - Tempo row:
-  - controls are double-left, single-left, `[BPM display]`, single-right, double-right triangle buttons
-  - BPM display is read-only and narrow enough for 3 digits
+  - controls are double-left, single-left, `[BPM input]`, single-right, double-right triangle buttons
+  - BPM input accepts keyboard entry and is narrow enough for 3 digits
+  - tempo range is `1..300`; completed edits are clamped to that range and truncated to an integer
+  - clearing the input allows replacement typing; committing an empty input restores the current tempo
+  - typed changes update playback immediately without replacing the focused input
   - double-triangle controls adjust by `5`
   - single-triangle controls adjust by `1`
 - Keyboard UX while the popup is open:
   - `Space` starts/stops playback
   - `ArrowUp` / `ArrowDown` adjust BPM by `1`
   - `Shift+ArrowUp` / `Shift+ArrowDown` adjust BPM by `5`
+  - arrow shortcuts also work inside the BPM input and suppress native number-input stepping
 - Top controls use one row with:
   - time signature toggle group: `3/4`, `4/4` (default `4/4`)
   - Rhythm toggle group: `1/4` (default), `1/8`, `1/8T`, `1/16`
@@ -260,7 +264,8 @@ Each lick row has:
     - Practice tempo can be reduced below the current best
     - `min = 1`
     - `max = goal`
-    - Default BPM value is current best, or `1` when no previous session exists
+    - Default BPM value is current best, or half the goal rounded up to the next multiple of `10` when no previous session exists, clamped to `[1, goal]`
+    - BPM typing and completed-edit normalization match the standalone metronome, with `goal` as the maximum
   - Save validation:
     - value must be an integer
     - value must stay within `[1, goal]`
@@ -271,10 +276,12 @@ Each lick row has:
     - `Enter` submits the dialog
     - `Esc` closes the dialog
     - inline metronome supports:
+      - typing an integer directly into the BPM box
       - `Space` starts/stops playback
       - `ArrowUp` / `ArrowDown` adjust BPM by `1`
       - `Shift+ArrowUp` / `Shift+ArrowDown` adjust BPM by `5`
     - Add Session routes arrow keys to the inline metronome while the dialog is open, even after focus moves elsewhere
+    - desktop focuses and selects the BPM input on open; mobile focuses the dialog to avoid opening the virtual keyboard
   - Closing the dialog stops the inline metronome
   - Submit creates today's session, or updates today's existing session when one is already present
 - `Edit` icon in row actions (before `...`)
