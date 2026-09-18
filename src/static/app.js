@@ -770,8 +770,9 @@ class BeatsApp extends LitElement {
         }
         return a.id - b.id;
       }
-      if (left === null || left === undefined) return direction;
-      if (right === null || right === undefined) return -direction;
+      const nullOrder = this.sortBy === "first" || this.sortBy === "last" ? 1 : direction;
+      if (left === null || left === undefined) return nullOrder;
+      if (right === null || right === undefined) return -nullOrder;
       return (typeof left === "string" ? left.localeCompare(right) : left - right) * direction;
     });
   }

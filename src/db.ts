@@ -341,6 +341,7 @@ export async function getLicks(
 ): Promise<LickAggregate[]> {
   const sortColumn = SORT_MAP[sortBy] ?? "artist_name";
   const sortDirection = sortDir?.toLowerCase() === "desc" ? "DESC" : "ASC";
+  const nullOrder = sortColumn === "first_date" || sortColumn === "last_date" ? " NULLS LAST" : "";
   const secondarySort = sortColumn === "artist_name" ? ", lick_name ASC" : "";
 
   const base = `
@@ -368,7 +369,7 @@ export async function getLicks(
     LEFT JOIN sessions s ON s.lick_id = l.id
     %ARTIST_FILTER%
     GROUP BY l.id, a.id, a.name, l.name, l.url, l.goal_bpm
-    ORDER BY ${sortColumn} ${sortDirection}${secondarySort}, l.id ASC
+    ORDER BY ${sortColumn} ${sortDirection}${nullOrder}${secondarySort}, l.id ASC
   `;
 
   let rows;

@@ -58,6 +58,26 @@ afterAll(async () => {
 });
 
 describe("db behavior", () => {
+  test("first and last date sorts keep licks without sessions last in both directions", async () => {
+    const unstarted = await createLick(db, "Pat", "Unstarted", 100);
+    const wide = await createLick(db, "Pat", "Wide", 100);
+    const middle = await createLick(db, "Pat", "Middle", 100);
+    const anotherUnstarted = await createLick(db, "Pat", "Also unstarted", 100);
+    await addSession(db, wide, "2026-02-01", 50);
+    await addSession(db, wide, "2026-02-20", 60);
+    await addSession(db, middle, "2026-02-10", 50);
+
+    for (const [sortBy, sortDir, dated] of [
+      ["first", "asc", [wide, middle]],
+      ["first", "desc", [middle, wide]],
+      ["last", "asc", [middle, wide]],
+      ["last", "desc", [wide, middle]],
+    ] as const) {
+      const rows = await getLicks(db, null, sortBy, sortDir, "2026-02-21");
+      expect(rows.map((row) => row.id)).toEqual([...dated, unstarted, anotherUnstarted]);
+    }
+  });
+
   test("today selects ten unique in-progress licks for each category", () => {
     const rows = Array.from({ length: 50 }, (_, index) => {
       const id = index + 1;
