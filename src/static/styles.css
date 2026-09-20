@@ -321,7 +321,8 @@ body {
   white-space: nowrap;
 }
 
-.table th button {
+.table th button,
+.sort-chips .today-toggle {
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink);
@@ -335,7 +336,8 @@ body {
   border-radius: 999px;
 }
 
-.table th button.active {
+.table th button.active,
+.sort-chips .today-toggle.active {
   color: #fff;
   background: #0f6f9f;
   border-color: #0d5f87;
@@ -366,7 +368,8 @@ body {
   align-items: center;
 }
 
-.table th button.today-toggle {
+.table th button.today-toggle,
+.sort-chips .today-toggle {
   padding: 5px 8px;
   border-radius: 10px;
 }
@@ -425,10 +428,20 @@ body {
 
 .sort-chips {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   overflow-x: auto;
   padding-bottom: 4px;
   margin-bottom: 10px;
+}
+
+.sort-chips .btn {
+  padding-inline: 6px;
+  white-space: nowrap;
+}
+
+.sort-chips .today-toggle {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .alert {

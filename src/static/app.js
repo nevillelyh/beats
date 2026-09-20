@@ -959,6 +959,7 @@ class BeatsApp extends LitElement {
                   ${this.sortChip("%", "pct")}
                   ${this.sortChip("#", "sessions")}
                   ${this.sortChip("Last", "last")}
+                  ${todayToggle}
                 </div>
               `
             : ""}
@@ -969,7 +970,6 @@ class BeatsApp extends LitElement {
             ${this.compact
               ? html`
                   <table class="table">
-                    <thead><tr><th><div class="actions">${todayToggle}</div></th></tr></thead>
                     <tbody>
                       ${visibleLicks.length === 0
                         ? html`<tr><td class="row-empty">${this.sessionDateFilter !== "All" ? "No matching licks." : "No licks yet."}</td></tr>`
