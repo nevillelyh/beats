@@ -107,6 +107,8 @@ class BeatsMetronome extends HTMLElement {
     this.bpm = this.normalizeBpm(value);
     if (shouldRender) {
       this.render();
+    } else {
+      this.updateTempoButtons();
     }
     if (this.running) {
       this.restartTimer();
@@ -318,9 +320,17 @@ class BeatsMetronome extends HTMLElement {
     `;
   }
 
+  updateTempoButtons() {
+    for (const button of this.querySelectorAll("[data-metronome-adjust]")) {
+      const delta = Number(button.dataset.metronomeAdjust);
+      button.disabled = this.hasAttribute("tempo-locked")
+        || (delta < 0 ? this.bpm <= MIN_BPM : this.bpm >= this.maxBpm);
+    }
+  }
+
   renderStepButton(delta, label) {
     return `
-      <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="${delta}" aria-label="${label}" ${this.hasAttribute("tempo-locked") ? "disabled" : ""}>
+      <button type="button" class="btn btn-step metronome-step" data-metronome-adjust="${delta}" aria-label="${label}">
         ${this.renderStepIcon(delta)}
       </button>
     `;
@@ -388,6 +398,7 @@ class BeatsMetronome extends HTMLElement {
         </dialog>
       `;
     this.bindEvents();
+    this.updateTempoButtons();
     if (wasOpen) {
       this.querySelector("dialog")?.showModal();
       setMetronomeButtonOpen(true);
@@ -424,6 +435,7 @@ class BeatsMetronome extends HTMLElement {
       if (this.hasAttribute("tempo-locked")) return;
       const bpm = event.target.valueAsNumber;
       this.bpm = this.normalizeBpm(bpm);
+      this.updateTempoButtons();
       if (this.running) {
         this.restartTimer();
       }
