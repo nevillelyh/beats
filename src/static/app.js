@@ -128,9 +128,7 @@ class BeatsApp extends LitElement {
   }
 
   togglePrefix(prefix) {
-    this.selectedPrefixes = this.selectedPrefixes.includes(prefix)
-      ? this.selectedPrefixes.filter((selected) => selected !== prefix)
-      : [...this.selectedPrefixes, prefix];
+    this.selectedPrefixes = this.selectedPrefixes.includes(prefix) ? [] : [prefix];
   }
 
   applyUrlState(params) {
