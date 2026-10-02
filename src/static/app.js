@@ -1,5 +1,6 @@
 import { LitElement, html } from "https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js";
 import "/page-nav.js";
+import { lickPrefix, lickPrefixGroups } from "/lick-prefixes.js";
 
 const COMPACT_BREAKPOINT = 720;
 const VALID_SORT_OPTIONS = new Set(["artist", "lick", "goal", "best", "pct", "sessions", "first", "last"]);
@@ -29,6 +30,7 @@ class BeatsApp extends LitElement {
     compact: { state: true },
     progressFilter: { state: true },
     lickFilter: { state: true },
+    selectedPrefixes: { state: true },
     sessionDateFilter: { state: true },
   };
 
@@ -58,6 +60,7 @@ class BeatsApp extends LitElement {
     this.addLickRows = [this._createAddLickRow()];
     this.progressFilter = "all";
     this.lickFilter = "";
+    this.selectedPrefixes = [];
     this.sessionDateFilter = "All";
     this.compact = typeof window !== "undefined" ? window.innerWidth <= COMPACT_BREAKPOINT : false;
     this._onResize = () => {
@@ -106,6 +109,28 @@ class BeatsApp extends LitElement {
     window.removeEventListener("popstate", this._onPopState);
     window.removeEventListener("keydown", this._onKeydown);
     super.disconnectedCallback();
+  }
+
+  willUpdate(changed) {
+    if (changed.has("filterArtistId")) {
+      this.selectedPrefixes = [];
+    } else if (changed.has("licks")) {
+      const available = this.prefixGroups().map((group) => group.prefix);
+      this.selectedPrefixes = this.selectedPrefixes.filter((prefix) => available.includes(prefix));
+    }
+  }
+
+  prefixGroups() {
+    if (this.isToday || !this.filterArtistId) return [];
+    return lickPrefixGroups(this.licks
+      .filter((row) => String(row.artist_id) === this.filterArtistId)
+      .map((row) => row.lick_name));
+  }
+
+  togglePrefix(prefix) {
+    this.selectedPrefixes = this.selectedPrefixes.includes(prefix)
+      ? this.selectedPrefixes.filter((selected) => selected !== prefix)
+      : [...this.selectedPrefixes, prefix];
   }
 
   applyUrlState(params) {
@@ -812,6 +837,8 @@ class BeatsApp extends LitElement {
       startedPcts.length > 0
         ? Math.round((startedPcts.reduce((sum, pct) => sum + pct, 0) / startedPcts.length) * 10) / 10
         : null;
+    const prefixGroups = this.prefixGroups();
+    const selectedPrefixes = this.selectedPrefixes.map((prefix) => prefix.toLowerCase());
     const filteredLicks = this.licks.filter((row) => {
       if (this.progressFilter === "all") {
         return true;
@@ -829,7 +856,8 @@ class BeatsApp extends LitElement {
       }
       const query = this.lickFilter.toLowerCase();
       return row.lick_name.toLowerCase().includes(query) || row.artist_name.toLowerCase().includes(query);
-    });
+    }).filter((row) => selectedPrefixes.length === 0
+      || selectedPrefixes.includes(lickPrefix(row.lick_name).toLowerCase()));
     const today = this.localDate();
     const visibleLicks = (this.isToday ? this.sortRows(this.licks) : filteredLicks)
       .filter((row) => this.sessionDateFilter === "All"
@@ -948,6 +976,19 @@ class BeatsApp extends LitElement {
                   : ""}
               </div>
             </div>
+            ${prefixGroups.length === 0 ? "" : html`
+              <div class="toolbar-row" role="group" aria-label="Lick prefixes">
+                ${prefixGroups.map(({ prefix, count }) => html`
+                  <button
+                    type="button"
+                    class="btn btn-small ${this.selectedPrefixes.includes(prefix) ? "chip-active" : "chip"}"
+                    aria-pressed=${String(this.selectedPrefixes.includes(prefix))}
+                    title=${`${count} licks`}
+                    @click=${() => this.togglePrefix(prefix)}
+                  >${prefix}</button>
+                `)}
+              </div>
+            `}
           </div>`}
           ${this.compact
             ? html`
