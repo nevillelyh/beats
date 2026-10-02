@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS licks (
   name TEXT NOT NULL,
   url TEXT,
   goal_bpm INTEGER NOT NULL CHECK(goal_bpm > 0),
+  starred BOOLEAN NOT NULL DEFAULT FALSE,
   UNIQUE(artist_id, name)
 );
 

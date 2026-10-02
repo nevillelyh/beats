@@ -345,6 +345,22 @@ class BeatsApp extends LitElement {
     return row?.can_add_today !== false;
   }
 
+  async toggleStar(lick) {
+    try {
+      await this.api(`/api/licks/${lick.id}/star`, {
+        method: "PATCH",
+        body: JSON.stringify({ starred: !lick.starred }),
+      });
+      await this.reloadLicks();
+    } catch (err) {
+      this.error = err.message;
+    }
+  }
+
+  isReviewSession() {
+    return this.activeLick?.starred && this.activeLick.best_bpm >= this.activeLick.goal_bpm;
+  }
+
   async openSessions(lick) {
     this.activeLick = lick;
     this.sessionSortBy = "date";
@@ -390,7 +406,7 @@ class BeatsApp extends LitElement {
   }
 
   onAddSessionTempoChange(event) {
-    this.addValue = event.detail.bpm;
+    this.addValue = this.isReviewSession() ? this.activeLick.goal_bpm : event.detail.bpm;
     this.addSessionSaveAttempted = false;
   }
 
@@ -443,6 +459,9 @@ class BeatsApp extends LitElement {
   addValueValidationError() {
     if (!Number.isInteger(this.addValue)) {
       return "BPM must be an integer";
+    }
+    if (this.isReviewSession()) {
+      return this.addValue === this.activeLick.goal_bpm ? "" : "Reviews must use goal BPM";
     }
     if (this.activeLick?.best_bpm !== null && this.activeLick?.best_bpm !== undefined && this.addValue <= this.activeLick.best_bpm) {
       return `BPM must be greater than current best (${this.activeLick.best_bpm})`;
@@ -766,10 +785,18 @@ class BeatsApp extends LitElement {
   }
 
   renderLickName(row) {
-    if (row.lick_url) {
-      return html`<a class="lick-link" href=${row.lick_url} target="_blank" rel="noopener noreferrer">${row.lick_name}</a>`;
-    }
-    return html`${row.lick_name}`;
+    return html`
+      <button
+        type="button"
+        class="lick-star ${row.starred ? "lick-star-active" : ""}"
+        aria-label=${`${row.starred ? "Unstar" : "Star"} ${row.lick_name}`}
+        aria-pressed=${String(row.starred)}
+        @click=${() => this.toggleStar(row)}
+      >${row.starred ? "★" : "☆"}</button>
+      ${row.lick_url
+        ? html`<a class="lick-link" href=${row.lick_url} target="_blank" rel="noopener noreferrer">${row.lick_name}</a>`
+        : row.lick_name}
+    `;
   }
 
   sortRows(rows) {
@@ -1159,7 +1186,7 @@ class BeatsApp extends LitElement {
         @keydown=${this.onAddSessionDialogKeydown}
       >
         <form @submit=${this._onFormSubmit(this.submitAddSession)}>
-          <h3>Add Session</h3>
+          <h3>${this.isReviewSession() ? "Review" : "Add Session"}</h3>
           <div class="range-grid">
             <div class="muted">
               Lick:
@@ -1176,6 +1203,7 @@ class BeatsApp extends LitElement {
               inline
               bpm=${this.addValue}
               max=${this.addSessionMax}
+              ?tempo-locked=${this.isReviewSession()}
               @bpm-change=${this.onAddSessionTempoChange}
             ></beats-metronome>
           </div>

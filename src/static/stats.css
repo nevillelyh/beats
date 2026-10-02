@@ -325,6 +325,14 @@
     );
 }
 
+.bar-seg-review {
+  background: #14532d;
+}
+
+.bar-seg-bpm-review {
+  background: #ef4444;
+}
+
 .bar-seg-progress {
   background: #34d399;
 }

@@ -267,6 +267,19 @@ body {
   overflow-x: auto;
 }
 
+.lick-star {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.lick-star-active {
+  color: #a16207;
+}
+
 .lick-link {
   color: #0f6f9f;
   text-decoration: none;

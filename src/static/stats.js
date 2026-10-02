@@ -450,6 +450,7 @@ function renderSessionsBars(target, yAxis, rows) {
       + r.progression_sessions
       + r.first_completion_sessions
       + r.completion_sessions
+      + r.review_sessions
     )),
   );
   const scale = BARS_HEIGHT / maxTotal;
@@ -459,7 +460,7 @@ function renderSessionsBars(target, yAxis, rows) {
 
   rows.forEach((row, index) => {
     const stack = createBarStack(
-      `${row.date}: first ${row.first_sessions}, progression ${row.progression_sessions}, completion ${row.completion_sessions}, first+completion ${row.first_completion_sessions}`,
+      `${row.date}: first ${row.first_sessions}, progression ${row.progression_sessions}, completion ${row.completion_sessions}, first+completion ${row.first_completion_sessions}, review ${row.review_sessions}`,
     );
 
     const segments = [
@@ -467,6 +468,7 @@ function renderSessionsBars(target, yAxis, rows) {
       ["bar-seg-progression", row.progression_sessions],
       ["bar-seg-completion", row.completion_sessions],
       ["bar-seg-first-completion", row.first_completion_sessions],
+      ["bar-seg-review", row.review_sessions],
     ];
     for (const [cls, count] of segments) {
       appendBarSegment(stack, cls, Math.round(count * scale));
@@ -578,7 +580,7 @@ function renderBpmBars(target, yAxis, legend, rows) {
   const maxTotal = Math.max(
     1,
     ...rows.map((row) => (
-      (row.first_sessions * 5)
+      ((row.first_sessions + row.review_sessions) * 5)
       + row.delta_bins.reduce((sum, part) => sum + (part.session_count * part.delta_bin), 0)
     )),
   );
@@ -589,6 +591,10 @@ function renderBpmBars(target, yAxis, legend, rows) {
   legendFirst.className = "legend-item";
   legendFirst.innerHTML = `<span class="legend-swatch bar-seg-bpm-first"></span>First`;
   legend.appendChild(legendFirst);
+  const legendReview = document.createElement("span");
+  legendReview.className = "legend-item";
+  legendReview.innerHTML = `<span class="legend-swatch bar-seg-bpm-review"></span>Review (+5)`;
+  legend.appendChild(legendReview);
   for (const bin of allBins) {
     const item = document.createElement("span");
     item.className = "legend-item";
@@ -611,17 +617,21 @@ function renderBpmBars(target, yAxis, legend, rows) {
 
   rows.forEach((row, index) => {
     const firstTotal = row.first_sessions * 5;
+    const reviewTotal = row.review_sessions * 5;
     const deltaText = row.delta_bins
       .map((part) => `+${part.delta_bin} x${part.session_count} = ${part.delta_bin * part.session_count}`)
       .join(", ");
     const stack = createBarStack(
-      `${row.date}: first +5 x${row.first_sessions} = ${firstTotal}${deltaText ? `, ${deltaText}` : ""}`,
+      `${row.date}: first +5 x${row.first_sessions} = ${firstTotal}, review +5 x${row.review_sessions} = ${reviewTotal}${deltaText ? `, ${deltaText}` : ""}`,
     );
 
     if (row.first_sessions > 0) {
       appendBarSegment(stack, "bar-seg-bpm-first", Math.round(firstTotal * scale));
     }
 
+    if (row.review_sessions > 0) {
+      appendBarSegment(stack, "bar-seg-bpm-review", Math.round(reviewTotal * scale));
+    }
     for (const part of row.delta_bins) {
       appendBarSegment(
         stack,
@@ -745,6 +755,7 @@ async function loadStats() {
         const sessionRows = fillDateWindow(sessionByDate, windowDates, (date) => ({
           date,
           first_sessions: 0,
+          review_sessions: 0,
           completion_sessions: 0,
           progression_sessions: 0,
           first_completion_sessions: 0,
@@ -752,6 +763,7 @@ async function loadStats() {
         const bpmRows = fillDateWindow(bpmByDate, windowDates, (date) => ({
           date,
           first_sessions: 0,
+          review_sessions: 0,
           delta_bins: [],
         }));
         renderSessionsBars(sessionsBars, sessionsYAxis, sessionRows);

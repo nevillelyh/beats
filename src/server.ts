@@ -19,6 +19,7 @@ import {
   openDb,
   updateArtist,
   updateLick,
+  setLickStarred,
 } from "./db";
 
 const PORT = Number(process.env.PORT || 3000);
@@ -185,6 +186,18 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     }
   }
 
+  const starMatch = url.pathname.match(/^\/api\/licks\/(\d+)\/star$/);
+  if (starMatch && req.method === "PATCH") {
+    try {
+      const body = (await req.json()) as { starred?: boolean };
+      if (typeof body.starred !== "boolean") return badRequest("starred must be a boolean");
+      await setLickStarred(db, parseRouteId(starMatch), body.starred);
+      return json({ ok: true });
+    } catch (err) {
+      return badRequest((err as Error).message);
+    }
+  }
+
   const lickMatch = url.pathname.match(/^\/api\/licks\/(\d+)$/);
   if (lickMatch && req.method === "PATCH") {
     try {
@@ -233,7 +246,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       }
 
       const best = meta.best_bpm ?? 0;
-      if (best >= meta.goal_bpm) {
+      if (best >= meta.goal_bpm && !meta.starred) {
         return badRequest("Cannot add session when best BPM already meets/exceeds goal");
       }
       const range = getSessionBpmRange(best, meta.goal_bpm);
@@ -276,7 +289,7 @@ async function serveStatic(url: URL): Promise<Response> {
   return new Response(file, { headers });
 }
 
-Bun.serve({
+const server = Bun.serve({
   port: PORT,
   fetch: async (req) => {
     const url = new URL(req.url);
@@ -288,5 +301,5 @@ Bun.serve({
   },
 });
 
-console.log(`Beats running on http://localhost:${PORT}`);
+console.log(`Beats running on http://localhost:${server.port}`);
 console.log(`Using DATABASE_URL=${DATABASE_URL}`);

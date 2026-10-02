@@ -19,6 +19,8 @@ import {
   openDb,
   updateArtist,
   updateLick,
+  setLickStarred,
+  getLickMeta,
   type Sql,
 } from "../src/db";
 
@@ -29,6 +31,7 @@ function aggregate(id: number, overrides: Partial<Parameters<typeof selectTodayL
     artist_name: "Artist",
     lick_name: `Lick ${id}`,
     lick_url: null,
+    starred: false,
     goal_bpm: 100,
     best_bpm: 50,
     pct_of_goal: 50,
@@ -58,6 +61,74 @@ afterAll(async () => {
 });
 
 describe("db behavior", () => {
+  test("migrates existing licks without losing data and is safe to repeat", async () => {
+    const id = await createLick(db, "Pat", "Legacy", 100);
+    await addSession(db, id, "2026-02-10", 80);
+    await db.exec("ALTER TABLE licks DROP COLUMN starred");
+    await initSchema(db);
+    expect(await getLickMeta(db, id)).toEqual({ goal_bpm: 100, best_bpm: 80, starred: false });
+    await setLickStarred(db, id, true);
+    await initSchema(db);
+    expect((await getLickMeta(db, id))?.starred).toBe(true);
+    expect(await getSessions(db, id, "date", "asc")).toHaveLength(1);
+  });
+
+  test("stars allow completed sessions and unstarring preserves reviews and totals", async () => {
+    const id = await createLick(db, "Pat", "Review", 100);
+    await addSession(db, id, "2026-02-10", 80);
+    await addSession(db, id, "2026-02-11", 100);
+    expect((await getLicks(db, null, "artist", "asc", "2026-02-12"))[0].can_add_today).toBe(false);
+    await setLickStarred(db, id, true);
+    expect((await getLicks(db, null, "artist", "asc", "2026-02-12"))[0].can_add_today).toBe(true);
+    await addSession(db, id, "2026-02-12", 100);
+    const before = await getStatsBars(db);
+    await setLickStarred(db, id, false);
+    expect(await getStatsBars(db)).toEqual(before);
+    expect(before.sessions[2].review_sessions).toBe(1);
+    expect(before.bpm_deltas[2]).toEqual({ date: "2026-02-12", first_sessions: 0, review_sessions: 1, delta_bins: [] });
+    expect(before.progress[2].progress_values).toEqual([]);
+    const [lick] = await getLicks(db, null, "artist", "asc", "2026-02-12");
+    expect(lick).toMatchObject({ starred: false, can_add_today: false, best_bpm: 100, session_count: 3, last_date: "2026-02-12" });
+    expect((await getStats(db))[2]).toEqual({ date: "2026-02-12", session_count: 1 });
+    expect(await getStatsHistograms(db)).toEqual({
+      session_deltas: [{ bucket: 20, count: 1 }],
+      sessions_to_complete: [{ bucket: 2, count: 1 }],
+      days_to_complete: [{ bucket: 2, count: 1 }],
+    });
+  });
+
+  test("same-day review saves preserve first completion and historical best BPM", async () => {
+    const id = await createLick(db, "Pat", "Same day", 100);
+    await setLickStarred(db, id, true);
+    await addSession(db, id, "2026-02-10", 105);
+    await addSession(db, id, "2026-02-10", 100);
+    const sessions = await getSessions(db, id, "date", "asc");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].bpm).toBe(105);
+    const bars = await getStatsBars(db);
+    expect(bars.sessions[0]).toMatchObject({ first_completion_sessions: 1, review_sessions: 0 });
+    expect(getSessionBpmRange(105, 100)).toEqual({ min: 100, max: 100 });
+  });
+
+  test("today adds ten oldest starred completed licks without taking practice slots", () => {
+    const practice = Array.from({ length: 50 }, (_, i) => aggregate(i + 1));
+    const reviews = Array.from({ length: 12 }, (_, i) => aggregate(i + 101, {
+      starred: true, best_bpm: 100, pct_of_goal: 100,
+      last_date: `2026-01-${String(i + 1).padStart(2, "0")}`,
+    }));
+    const categories = selectTodayLicks([
+      ...practice, ...reviews,
+      aggregate(203, { session_count: 0, best_bpm: null, pct_of_goal: null }),
+      aggregate(201, { best_bpm: 100, pct_of_goal: 100 }),
+      aggregate(202, { starred: true, best_bpm: 199, goal_bpm: 200, pct_of_goal: 100 }),
+    ], () => 0);
+    expect(categories.filter((c) => c.key !== "review").flatMap((c) => c.licks)).toHaveLength(40);
+    expect(categories.find((c) => c.key === "review")?.licks.map((l) => l.id))
+      .toEqual(reviews.slice(0, 10).map((l) => l.id));
+    expect(new Set(categories.flatMap((c) => c.licks.map((l) => l.id))).size).toBe(50);
+    expect(selectTodayLicks(reviews.slice(0, 2))[0].licks).toHaveLength(2);
+  });
+
   test("first and last date sorts keep licks without sessions last in both directions", async () => {
     const unstarted = await createLick(db, "Pat", "Unstarted", 100);
     const wide = await createLick(db, "Pat", "Wide", 100);
@@ -284,7 +355,7 @@ describe("db behavior", () => {
     await addSession(db, lickA, "2026-02-10", 40);   // first, +10
     await addSession(db, lickA, "2026-02-11", 70);   // progression, +30
     await addSession(db, lickA, "2026-02-12", 105);  // completion, +35
-    await addSession(db, lickA, "2026-02-13", 100);  // progression, -5
+    await addSession(db, lickA, "2026-02-13", 100);  // review
 
     await addSession(db, lickB, "2026-02-11", 120);  // first, +10
     await addSession(db, lickB, "2026-02-12", 150);  // progression, +15
@@ -292,22 +363,22 @@ describe("db behavior", () => {
 
     expect(await getStatsBars(db)).toEqual({
       sessions: [
-        { date: "2026-02-10", first_sessions: 1, completion_sessions: 0, progression_sessions: 0, first_completion_sessions: 0 },
-        { date: "2026-02-11", first_sessions: 1, completion_sessions: 0, progression_sessions: 1, first_completion_sessions: 0 },
-        { date: "2026-02-12", first_sessions: 0, completion_sessions: 1, progression_sessions: 1, first_completion_sessions: 1 },
-        { date: "2026-02-13", first_sessions: 0, completion_sessions: 0, progression_sessions: 1, first_completion_sessions: 0 },
+        { date: "2026-02-10", first_sessions: 1, completion_sessions: 0, progression_sessions: 0, first_completion_sessions: 0, review_sessions: 0 },
+        { date: "2026-02-11", first_sessions: 1, completion_sessions: 0, progression_sessions: 1, first_completion_sessions: 0, review_sessions: 0 },
+        { date: "2026-02-12", first_sessions: 0, completion_sessions: 1, progression_sessions: 1, first_completion_sessions: 1, review_sessions: 0 },
+        { date: "2026-02-13", first_sessions: 0, completion_sessions: 0, progression_sessions: 0, first_completion_sessions: 0, review_sessions: 1 },
       ],
       progress: [
         { date: "2026-02-10", progress_values: [10] },
         { date: "2026-02-11", progress_values: [30, 10] },
         { date: "2026-02-12", progress_values: [35, 15, 10] },
-        { date: "2026-02-13", progress_values: [-5] },
+        { date: "2026-02-13", progress_values: [] },
       ],
       bpm_deltas: [
-        { date: "2026-02-10", first_sessions: 1, delta_bins: [] },
-        { date: "2026-02-11", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }] },
-        { date: "2026-02-12", first_sessions: 1, delta_bins: [{ delta_bin: 30, session_count: 1 }, { delta_bin: 35, session_count: 1 }] },
-        { date: "2026-02-13", first_sessions: 0, delta_bins: [{ delta_bin: 5, session_count: 1 }] },
+        { date: "2026-02-10", first_sessions: 1, review_sessions: 0, delta_bins: [] },
+        { date: "2026-02-11", first_sessions: 1, review_sessions: 0, delta_bins: [{ delta_bin: 30, session_count: 1 }] },
+        { date: "2026-02-12", first_sessions: 1, review_sessions: 0, delta_bins: [{ delta_bin: 30, session_count: 1 }, { delta_bin: 35, session_count: 1 }] },
+        { date: "2026-02-13", first_sessions: 0, review_sessions: 1, delta_bins: [] },
       ],
     });
   });
@@ -338,7 +409,7 @@ describe("db behavior", () => {
     await addSession(db, lickA, "2026-02-10", 40);
     await addSession(db, lickA, "2026-02-11", 70);   // +30
     await addSession(db, lickA, "2026-02-12", 105);  // +35 (complete on session 3, day 3)
-    await addSession(db, lickA, "2026-02-13", 100);  // +5
+    await addSession(db, lickA, "2026-02-13", 100);  // review
 
     await addSession(db, lickB, "2026-02-11", 120);
     await addSession(db, lickB, "2026-02-12", 150);  // +30, incomplete lick
@@ -347,7 +418,6 @@ describe("db behavior", () => {
 
     expect(await getStatsHistograms(db)).toEqual({
       session_deltas: [
-        { bucket: 5, count: 1 },
         { bucket: 30, count: 2 },
         { bucket: 35, count: 1 },
       ],
