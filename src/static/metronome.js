@@ -1,5 +1,5 @@
 const DEFAULT_BPM = 120;
-const MIN_BPM = 1;
+const MIN_BPM = 30;
 const MAX_BPM = 300;
 const SIGNATURES = [3, 4];
 const SUBDIVISIONS = [
