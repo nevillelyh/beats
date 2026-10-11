@@ -593,7 +593,7 @@ function renderBpmBars(target, yAxis, legend, rows) {
   legend.appendChild(legendFirst);
   const legendReview = document.createElement("span");
   legendReview.className = "legend-item";
-  legendReview.innerHTML = `<span class="legend-swatch bar-seg-bpm-review"></span>Review (+5)`;
+  legendReview.innerHTML = `<span class="legend-swatch bar-seg-bpm-review"></span>Review`;
   legend.appendChild(legendReview);
   for (const bin of allBins) {
     const item = document.createElement("span");

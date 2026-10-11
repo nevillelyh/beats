@@ -350,7 +350,7 @@ Each lick row has:
     - Completion stays green (`#15803d`); Review is darker green (`#14532d`).
     - Reviews count toward session totals, heatmap density, and streaks, but not progress deltas or completion metrics.
   - `Deltas`: stacked daily bars with `First` at the bottom, then `Review`, then absolute BPM-change bins (`+5`, `+10`, ...)
-    - Review is red (`#ef4444`), labeled `Review (+5)`, and excluded from the ordinary delta bins.
+    - Review is red (`#ef4444`), labeled `Review`, and excluded from the ordinary delta bins.
     - Legend shows one trailing unit label (`BPM`) instead of repeating units per term
     - Stack segment heights use measured delta bins plus fixed First/Review credit:
       - `First` = `first_sessions * 5`
