@@ -397,6 +397,21 @@ Opened from the toolbar `+` add lick button when an artist filter is active. Mod
   - mobile does not autofocus dialog inputs to avoid iOS viewport shifts from the virtual keyboard
 - Goal BPM input accepts any integer value (`step=1`) while the stepper buttons and keyboard shortcuts still adjust by `5`
 
+### Lessons
+
+- Lessons share the existing Licks table and artist, text, prefix, progress, and date filters. They appear under Done.
+- The add dialog defaults to Lick and has a Lick / Lesson toggle. Switching modes preserves drafts until the dialog closes.
+- Lesson mode has a single required name and optional URL, with no BPM or additional rows. Enter submits; the button reads `Complete`.
+- Saving atomically creates a lesson and its single completion session for the device's local date.
+- Entries have an immutable `kind` (`lick` or `lesson`, default `lick`). Lesson goal and session BPM are NULL; normal lick tempos remain required and positive.
+- Sessions carry the matching kind, enforced by a composite foreign key. A partial unique index permits at most one session per lesson.
+- Existing SQLite and PostgreSQL databases migrate automatically, preserving IDs, URLs, stars, and session history.
+- A lesson marker replaces the star. Goal and Best are empty, % is 100%, # is 1, and First/Last equal the entry date.
+- Lessons cannot be starred or receive additional sessions. Editing changes name/URL only; session history displays the completion date and `Completed` status.
+- Today always excludes lessons.
+- Heatmaps, streaks, and daily session totals include lessons. Sessions bars count each lesson as First+Completion.
+- Deltas exclude lessons entirely, including first-session credit. Progress and completion histograms and the table's Average % remain lick-only.
+
 ### Add artist
 
 Opened from the toolbar `+` add artist button:

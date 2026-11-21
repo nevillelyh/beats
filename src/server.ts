@@ -3,6 +3,7 @@ import {
   addSession,
   createArtist,
   createLick,
+  createLesson,
   createLicks,
   getProgressDistribution,
   getArtists,
@@ -149,6 +150,7 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     try {
       const body = (await req.json()) as {
         artistName?: string;
+        kind?: string;
         lickName?: string;
         goalBpm?: number;
         url?: string;
@@ -160,6 +162,16 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
       };
       if (!body.artistName) {
         return badRequest("artistName is required");
+      }
+      if (body.kind !== undefined && body.kind !== "lick" && body.kind !== "lesson") {
+        return badRequest("kind must be lick or lesson");
+      }
+      if (body.kind === "lesson") {
+        if (body.licks !== undefined || body.goalBpm != null) {
+          return badRequest("Lessons require one entry and no goal BPM");
+        }
+        const id = await createLesson(db, body.artistName, body.lickName || "", normalizeLocalDate(req.headers.get("x-local-date")), body.url);
+        return json({ id, ids: [id] }, 201);
       }
       if (Array.isArray(body.licks)) {
         if (body.licks.length === 0) {
@@ -203,14 +215,14 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
     try {
       const lickId = parseRouteId(lickMatch);
       const body = (await req.json()) as {
+        kind?: string;
         lickName?: string;
         goalBpm?: number;
         url?: string;
       };
-      if (!body.lickName || !body.goalBpm) {
-        return badRequest("lickName and goalBpm are required");
-      }
-      await updateLick(db, lickId, body.lickName, body.goalBpm, body.url);
+      if (body.kind !== undefined) return badRequest("Entry type cannot be changed");
+      if (!body.lickName) return badRequest("lickName is required");
+      await updateLick(db, lickId, body.lickName, body.goalBpm ?? null, body.url);
       return json({ ok: true });
     } catch (err) {
       return handleDbError(err, "Lick already exists for this artist");
@@ -245,6 +257,9 @@ async function handleApi(req: Request, url: URL): Promise<Response | null> {
         return notFound("Lick not found");
       }
 
+      if (meta.kind === "lesson" || meta.goal_bpm === null) {
+        return badRequest("Lessons already have their completion session");
+      }
       const best = meta.best_bpm ?? 0;
       if (best >= meta.goal_bpm && !meta.starred) {
         return badRequest("Cannot add session when best BPM already meets/exceeds goal");

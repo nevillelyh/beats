@@ -66,3 +66,32 @@ test("review API enforces goal BPM, preserves same-day completion, and keeps uns
   expect((await (await request("/stats/bars")).json()).data).toEqual(bars);
   expect((await (await request(`/licks/${id}/sessions`)).json()).data).toHaveLength(3);
 });
+
+test("lesson API creates one local-date completion and rejects tempo, batches, type changes, and extra sessions", async () => {
+  const request = (path: string, method = "GET", body?: unknown) =>
+    fetch(`${baseUrl}/api${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", "X-Local-Date": "2026-03-01" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  const lesson = { artistName: "Lessons artist", lickName: "Lesson", kind: "lesson", url: "https://example.com" };
+  for (const invalid of [{ ...lesson, goalBpm: 100 }, { ...lesson, licks: [] }, { ...lesson, kind: "other" }, { ...lesson, lickName: " " }]) {
+    expect((await request("/licks", "POST", invalid)).status).toBe(400);
+  }
+  const response = await request("/licks", "POST", lesson);
+  expect(response.status).toBe(201);
+  const { id } = await response.json();
+  expect((await request("/licks", "POST", lesson)).status).toBe(400);
+  expect((await request(`/licks/${id}/sessions`, "POST", { bpm: 100 })).status).toBe(400);
+  expect((await request(`/licks/${id}/star`, "PATCH", { starred: true })).status).toBe(400);
+  expect((await request(`/licks/${id}`, "PATCH", { lickName: "Edited", kind: "lick", goalBpm: 100 })).status).toBe(400);
+  expect((await request(`/licks/${id}`, "PATCH", { lickName: "Edited", goalBpm: 100 })).status).toBe(400);
+  expect((await request(`/licks/${id}`, "PATCH", { lickName: "Edited" })).status).toBe(200);
+  const rows = (await (await request("/licks")).json()).data;
+  expect(rows.find((row: { id: number }) => row.id === id)).toMatchObject({
+    kind: "lesson", lick_name: "Edited", lick_url: null, pct_of_goal: 100, goal_bpm: null, best_bpm: null,
+    session_count: 1, first_date: "2026-03-01", last_date: "2026-03-01", can_add_today: false,
+  });
+  expect((await (await request(`/licks/${id}/sessions`)).json()).data).toMatchObject([{ date: "2026-03-01", bpm: null }]);
+  expect((await (await request("/today")).json()).data.some((row: { id: number }) => row.id === id)).toBe(false);
+});

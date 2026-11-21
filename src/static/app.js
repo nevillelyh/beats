@@ -27,6 +27,10 @@ class BeatsApp extends LitElement {
     addSessionMax: { state: true },
     addSessionSaveAttempted: { state: true },
     addLickRows: { state: true },
+    addKind: { state: true },
+    lessonName: { state: true },
+    lessonUrl: { state: true },
+    savingEntry: { state: true },
     compact: { state: true },
     progressFilter: { state: true },
     lickFilter: { state: true },
@@ -57,7 +61,11 @@ class BeatsApp extends LitElement {
     this.addValue = 0;
     this.addSessionMax = 0;
     this.addSessionSaveAttempted = false;
+    this.savingEntry = false;
     this.addLickRows = [this._createAddLickRow()];
+    this.addKind = "lick";
+    this.lessonName = "";
+    this.lessonUrl = "";
     this.progressFilter = "all";
     this.lickFilter = "";
     this.selectedPrefixes = [];
@@ -342,7 +350,7 @@ class BeatsApp extends LitElement {
   }
 
   canAddSession(row) {
-    return row?.can_add_today !== false;
+    return row?.kind !== "lesson" && row?.can_add_today !== false;
   }
 
   async toggleStar(lick) {
@@ -498,6 +506,9 @@ class BeatsApp extends LitElement {
 
   resetAddLickRows() {
     this.addLickRows = [this._createAddLickRow()];
+    this.addKind = "lick";
+    this.lessonName = "";
+    this.lessonUrl = "";
   }
 
   _setAddLickRow(index, patch) {
@@ -604,9 +615,12 @@ class BeatsApp extends LitElement {
   }
 
   async submitAddLick() {
+    if (this.savingEntry) return;
     const activeArtist = this.artists.find((artist) => String(artist.id) === this.filterArtistId);
     const artistName = activeArtist?.name || "";
-    const validationError = this.addLickRowsValidationError();
+    const validationError = this.addKind === "lesson"
+      ? (this.lessonName.trim() ? "" : "Enter a lesson name")
+      : this.addLickRowsValidationError();
     const licks = this.addLickRows
       .map((row) => ({
         lickName: row.lickName.trim(),
@@ -614,7 +628,7 @@ class BeatsApp extends LitElement {
       }))
       .filter((row) => row.lickName);
     if (!artistName) {
-      this.error = "Select an artist before adding a lick";
+      this.error = "Select an artist before adding a lick or lesson";
       return;
     }
     if (validationError) {
@@ -622,21 +636,27 @@ class BeatsApp extends LitElement {
       return;
     }
 
+    this.savingEntry = true;
     try {
       await this.api("/api/licks", {
         method: "POST",
-        body: JSON.stringify({ artistName, licks }),
+        body: JSON.stringify(this.addKind === "lesson"
+          ? { artistName, kind: "lesson", lickName: this.lessonName.trim(), url: this.lessonUrl.trim() }
+          : { artistName, licks }),
       });
       this.resetAddLickRows();
       this.closeDialog("addLickDialog");
       await this.loadAll();
     } catch (err) {
       this.error = err.message;
+    } finally {
+      this.savingEntry = false;
     }
   }
 
-  openEditLickDialog(lick) {
+  async openEditLickDialog(lick) {
     this.editLick = lick;
+    await this.updateComplete;
     const nameInput = this.el("editLickName");
     const urlInput = this.el("editLickUrl");
     const goalInput = this.el("editGoalBpm");
@@ -649,7 +669,7 @@ class BeatsApp extends LitElement {
     if (goalInput) {
       goalInput.value = String(lick.goal_bpm || "");
     }
-    this.openDialog("editLickDialog", { desktopFocusId: "editGoalBpm" });
+    this.openDialog("editLickDialog", { desktopFocusId: lick.kind === "lesson" ? "editLickName" : "editGoalBpm" });
   }
 
   _editGoalMin() {
@@ -670,7 +690,7 @@ class BeatsApp extends LitElement {
     }
     const lickName = this.el("editLickName").value.trim();
     const url = this.el("editLickUrl").value.trim();
-    const goalBpm = Number(this.el("editGoalBpm").value);
+    const goalBpm = this.editLick.kind === "lesson" ? null : Number(this.el("editGoalBpm").value);
     try {
       await this.api(`/api/licks/${this.editLick.id}`, {
         method: "PATCH",
@@ -684,12 +704,13 @@ class BeatsApp extends LitElement {
     }
   }
 
-  openAddLickDialog() {
+  async openAddLickDialog() {
     if (!this.filterArtistId) {
       this.error = "Select an artist first";
       return;
     }
     this.resetAddLickRows();
+    await this.updateComplete;
     this.openDialog("addLickDialog", { desktopFocusId: "lickName" });
   }
 
@@ -786,13 +807,19 @@ class BeatsApp extends LitElement {
 
   renderLickName(row) {
     return html`
-      <button
+      ${row.kind === "lesson" ? html`
+        <svg class="lesson-marker" viewBox="0 0 24 24" role="img" aria-label="Lesson" focusable="false">
+          <title>Lesson</title>
+          <path d="M12 5C9 3 5 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Z"></path>
+          <path d="M12 5v15"></path>
+        </svg>
+      ` : html`<button
         type="button"
         class="lick-star ${row.starred ? "lick-star-active" : ""}"
         aria-label=${`${row.starred ? "Unstar" : "Star"} ${row.lick_name}`}
         aria-pressed=${String(row.starred)}
         @click=${() => this.toggleStar(row)}
-      >${row.starred ? "★" : "☆"}</button>
+      >${row.starred ? "★" : "☆"}</button>`}
       ${row.lick_url
         ? html`<a class="lick-link" href=${row.lick_url} target="_blank" rel="noopener noreferrer">${row.lick_name}</a>`
         : row.lick_name}
@@ -856,7 +883,7 @@ class BeatsApp extends LitElement {
     const inProgressCount = this.licks.filter((row) => this.isInProgressRow(row)).length;
     const doneCount = this.licks.filter((row) => this.isDoneRow(row)).length;
     const startedPcts = this.licks
-      .filter((row) => row.session_count > 0 && row.pct_of_goal !== null)
+      .filter((row) => row.kind !== "lesson" && row.session_count > 0 && row.pct_of_goal !== null)
       .map((row) => row.pct_of_goal);
     const averagePct =
       startedPcts.length > 0
@@ -965,7 +992,7 @@ class BeatsApp extends LitElement {
                   <span class="status-icon status-done" aria-hidden="true"></span>
                   <span class="stat-count">${doneCount}</span>
                 </button>
-                <span class="avg-pill" title="Average %">
+                <span class="avg-pill" title="Average lick % (excludes lessons)">
                   <span class="status-icon avg-icon" aria-hidden="true"></span>
                   <span class="stat-count">${averagePct === null ? "-" : `${averagePct}%`}</span>
                 </span>
@@ -973,8 +1000,8 @@ class BeatsApp extends LitElement {
                   class="btn btn-small btn-primary toolbar-add-lick"
                   ?disabled=${!this.filterArtistId}
                   @click=${this.openAddLickDialog}
-                  aria-label="Add lick"
-                  title=${this.filterArtistId ? "Add lick" : "Select an artist first"}
+                  aria-label="Add lick or lesson"
+                  title=${this.filterArtistId ? "Add lick or lesson" : "Select an artist first"}
                 >
                   +
                 </button>
@@ -1049,7 +1076,7 @@ class BeatsApp extends LitElement {
                                       <div><strong>${this.renderLickName(row)}</strong></div>
                                     </div>
                                     <div class="actions">
-                                      <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
+                                      <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label=${row.kind === "lesson" ? "Edit lesson" : "Edit lick"} title=${row.kind === "lesson" ? "Edit lesson" : "Edit lick"}>
                                         ${this._renderPenIcon()}
                                       </button>
                                       <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
@@ -1060,16 +1087,16 @@ class BeatsApp extends LitElement {
                                         ?disabled=${!this.canAddSession(row)}
                                         @click=${() => this.openAddSession(row)}
                                         aria-label="Add session"
-                                        title=${this.canAddSession(row) ? "Add session" : "Goal already met"}
+                                        title=${row.kind === "lesson" ? "Lesson completed" : this.canAddSession(row) ? "Add session" : "Goal already met"}
                                       >
                                         +
                                       </button>
                                     </div>
                                   </div>
                                   <div class="compact-meta">
-                                    <span>Goal ${row.goal_bpm}</span>
+                                    <span>Goal ${row.goal_bpm ?? ""}</span>
                                     <span class=${row.best_bpm !== null && row.best_bpm >= row.goal_bpm ? "goal-hit" : ""}>
-                                      Best ${this.fmt(row.best_bpm)}
+                                      Best ${row.kind === "lesson" ? "" : this.fmt(row.best_bpm)}
                                     </span>
                                     <span class=${row.pct_of_goal !== null && row.pct_of_goal >= 100 ? "goal-hit" : ""}>
                                       ${row.pct_of_goal === null ? "-" : `${row.pct_of_goal}%`}
@@ -1119,7 +1146,7 @@ class BeatsApp extends LitElement {
                                 <td class="col-bpm">${row.goal_bpm}</td>
                                 <td class="col-bpm">
                                   <span class=${row.best_bpm !== null && row.best_bpm >= row.goal_bpm ? "goal-hit-text" : ""}>
-                                    ${this.fmt(row.best_bpm)}
+                                    ${row.kind === "lesson" ? "" : this.fmt(row.best_bpm)}
                                   </span>
                                 </td>
                                 <td class="col-bpm col-pct">
@@ -1132,7 +1159,7 @@ class BeatsApp extends LitElement {
                                 <td>${this.fmt(row.last_date)}</td>
                                 <td>
                                   <div class="actions">
-                                    <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label="Edit lick" title="Edit lick">
+                                    <button class="btn btn-small" @click=${() => this.openEditLickDialog(row)} aria-label=${row.kind === "lesson" ? "Edit lesson" : "Edit lick"} title=${row.kind === "lesson" ? "Edit lesson" : "Edit lick"}>
                                       ${this._renderPenIcon()}
                                     </button>
                                     <button class="btn btn-small" ?disabled=${row.session_count === 0} @click=${() => this.openSessions(row)}>
@@ -1143,7 +1170,7 @@ class BeatsApp extends LitElement {
                                       ?disabled=${!this.canAddSession(row)}
                                       @click=${() => this.openAddSession(row)}
                                       aria-label="Add session"
-                                      title=${this.canAddSession(row) ? "Add session" : "Goal already met"}
+                                      title=${row.kind === "lesson" ? "Lesson completed" : this.canAddSession(row) ? "Add session" : "Goal already met"}
                                     >
                                       +
                                     </button>
@@ -1165,13 +1192,13 @@ class BeatsApp extends LitElement {
           <thead>
             <tr>
               ${this.sessionHeader("Date", "date")}
-              ${this.sessionHeader("BPM", "bpm")}
+              ${this.activeLick?.kind === "lesson" ? html`<th>Status</th>` : this.sessionHeader("BPM", "bpm")}
             </tr>
           </thead>
           <tbody>
             ${this.sessions.length === 0
               ? html`<tr><td colspan="2" class="row-empty">No sessions.</td></tr>`
-              : this.sessions.map((s) => html`<tr><td>${s.date}</td><td>${s.bpm}</td></tr>`)}
+              : this.sessions.map((s) => html`<tr><td>${s.date}</td><td>${this.activeLick?.kind === "lesson" ? "Completed" : s.bpm}</td></tr>`)}
           </tbody>
         </table>
         <div class="dialog-actions">
@@ -1216,13 +1243,26 @@ class BeatsApp extends LitElement {
 
       <dialog id="addLickDialog" class="modal add-lick-modal">
         <form @submit=${this._onFormSubmit(this.submitAddLick)}>
-          <h3>Add Licks</h3>
+          <h3>${this.addKind === "lesson" ? "Add Lesson" : "Add Licks"}</h3>
+          <div class="entry-kind-toggle" role="group" aria-label="Entry type">
+            ${["lick", "lesson"].map((kind) => html`
+              <button type="button" class="btn ${this.addKind === kind ? "btn-primary" : ""}"
+                aria-pressed=${String(this.addKind === kind)} ?disabled=${this.savingEntry}
+                @click=${() => { this.addKind = kind; }}>${kind === "lick" ? "Lick" : "Lesson"}</button>
+            `)}
+          </div>
           <div class="range-grid">
             <div class="muted">
               Artist:
               ${this.artists.find((artist) => String(artist.id) === this.filterArtistId)?.name || "-"}
             </div>
-            <div class="add-lick-rows">
+            ${this.addKind === "lesson" ? html`
+              <label for="lessonName">Name</label>
+              <input id="lessonName" required .value=${this.lessonName} @input=${(event) => { this.lessonName = event.target.value; }} />
+              <label for="lessonUrl">URL (optional)</label>
+              <input id="lessonUrl" type="url" placeholder="https://..." .value=${this.lessonUrl} @input=${(event) => { this.lessonUrl = event.target.value; }} />
+              <div class="muted">Records a completed session for today.</div>
+            ` : html`<div class="add-lick-rows">
               <div class="add-lick-row-labels">
                 <span>Lick</span>
                 <span>Goal BPM</span>
@@ -1269,11 +1309,11 @@ class BeatsApp extends LitElement {
                   </div>
                 `;
               })}
-            </div>
+            </div>`}
           </div>
           <div class="dialog-actions">
             <button type="button" class="btn" @click=${() => this.closeDialog("addLickDialog")}>Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="submit" class="btn btn-primary" ?disabled=${this.savingEntry}>${this.addKind === "lesson" ? "Complete" : "Save"}</button>
           </div>
         </form>
       </dialog>
@@ -1308,17 +1348,17 @@ class BeatsApp extends LitElement {
 
       <dialog id="editLickDialog" class="modal">
         <form @submit=${this._onFormSubmit(this.submitEditLick)}>
-          <h3>Edit Lick</h3>
+          <h3>${this.editLick?.kind === "lesson" ? "Edit Lesson" : "Edit Lick"}</h3>
           <div class="range-grid">
             <div class="muted">
               Artist:
               ${this.editLick?.artist_name || "-"}
             </div>
-            <label for="editLickName">Lick</label>
+            <label for="editLickName">${this.editLick?.kind === "lesson" ? "Name" : "Lick"}</label>
             <input id="editLickName" />
             <label for="editLickUrl">URL (optional)</label>
             <input id="editLickUrl" type="url" placeholder="https://..." />
-            <label for="editGoalBpm">Goal BPM</label>
+            ${this.editLick?.kind === "lesson" ? "" : html`<label for="editGoalBpm">Goal BPM</label>
             <div class="bpm-stepper">
               ${this.renderStepperButton("-", false, this.adjustEditGoalValue, -5)}
               <input
@@ -1332,7 +1372,7 @@ class BeatsApp extends LitElement {
                 @keydown=${this._stepperKeydown(this.adjustEditGoalValue)}
               />
               ${this.renderStepperButton("+", false, this.adjustEditGoalValue, 5)}
-            </div>
+            </div>`}
           </div>
           <div class="dialog-actions">
             <button type="button" class="btn" @click=${() => this.closeDialog("editLickDialog")}>Cancel</button>

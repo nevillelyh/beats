@@ -8,8 +8,11 @@ CREATE TABLE IF NOT EXISTS licks (
   artist_id INTEGER NOT NULL REFERENCES artists(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   url TEXT,
-  goal_bpm INTEGER NOT NULL CHECK(goal_bpm > 0),
+  kind TEXT NOT NULL DEFAULT 'lick' CHECK(kind IN ('lick', 'lesson')),
+  goal_bpm INTEGER,
   starred BOOLEAN NOT NULL DEFAULT FALSE,
+  CHECK((kind = 'lick' AND goal_bpm IS NOT NULL AND goal_bpm > 0) OR (kind = 'lesson' AND goal_bpm IS NULL)),
+  UNIQUE(id, kind),
   UNIQUE(artist_id, name)
 );
 
@@ -17,7 +20,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY,
   lick_id INTEGER NOT NULL REFERENCES licks(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
-  bpm INTEGER NOT NULL CHECK(bpm > 0),
+  kind TEXT NOT NULL DEFAULT 'lick',
+  bpm INTEGER,
+  CHECK((kind = 'lick' AND bpm IS NOT NULL AND bpm > 0) OR (kind = 'lesson' AND bpm IS NULL)),
+  FOREIGN KEY(lick_id, kind) REFERENCES licks(id, kind) ON DELETE CASCADE,
   UNIQUE(lick_id, date)
 );
 

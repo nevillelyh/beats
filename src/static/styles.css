@@ -888,3 +888,23 @@ input.metronome-bpm-display {
     gap: 14px;
   }
 }
+
+.entry-kind-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.lesson-marker {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 4px;
+  color: var(--muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

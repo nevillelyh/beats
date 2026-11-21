@@ -11,6 +11,8 @@ Beats is a tracker for music practice sessions with four pages and a shared metr
 - `Stats` (`/stats.html`)
 - `Metronome` popup available from each page
 
+The Licks page also tracks completed lessons. Select an artist, open the add dialog, and choose **Lesson** to enter a name and optional URL. Saving records one completed session for today, with no BPM. Lessons count toward activity and streaks, but are excluded from Today recommendations and tempo statistics.
+
 ## Stack
 
 - Bun (TypeScript server + SQLite or PostgreSQL)
